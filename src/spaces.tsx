@@ -1,6 +1,6 @@
 import { Action, ActionPanel, Color, Form, Icon, List, Toast, showToast, useNavigation } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
-import { getActiveSpaceId, listSpaces } from "./lib/native";
+import { getActiveSpaceId, listSpaces, mainDisplay } from "./lib/native";
 import { switchToSpace } from "./lib/spaceSwitch";
 import { ensureSwitchDefaults, setUpSwitching } from "./lib/desktopShortcuts";
 import { clearSpaceName, getSpaceConfig, MODIFIER_OPTIONS, nameForId, setSpaceConfig } from "./lib/spaceNames";
@@ -17,7 +17,9 @@ export default function Command() {
   async function reload() {
     try {
       ensureSwitchDefaults(); // apply default key codes + enable system shortcuts (once)
-      const list = listSpaces(true).slice(0, 11);
+      const list = listSpaces(true)
+        .filter((s) => s.display === mainDisplay())
+        .slice(0, 11);
       let active: number | undefined;
       try {
         active = getActiveSpaceId();
@@ -56,7 +58,6 @@ export default function Command() {
         const accessories: List.Item.Accessory[] = [];
         if (space.id === activeId) accessories.push({ tag: { value: "Current", color: Color.Green } });
         if (hasShortcut) accessories.push({ icon: Icon.Keyboard, tooltip: "Switch shortcut configured" });
-        accessories.push({ text: `Display ${space.display}` });
         return (
           <List.Item
             key={space.id}

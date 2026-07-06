@@ -98,6 +98,8 @@ interface RawSpace {
 }
 interface RawMonitor {
   Spaces?: RawSpace[];
+  /** The main (menu-bar) display reports the literal string "Main" here. */
+  "Display Identifier"?: string;
 }
 interface RawPrefs {
   SpacesDisplayConfiguration?: { "Management Data"?: { Monitors?: RawMonitor[] } };
@@ -105,6 +107,14 @@ interface RawPrefs {
 
 let cache: { at: number; map: Map<number, SpaceMeta> } | undefined;
 const MAP_TTL_MS = 15000;
+
+// Display number (1-based) of the main display, per the most recent map build.
+let mainDisplayNum = 1;
+
+/** The display number of the main (menu-bar) display. */
+export function mainDisplay(): number {
+  return mainDisplayNum;
+}
 
 /**
  * Builds an id -> {index, display} map from com.apple.spaces. The list ordering
@@ -121,6 +131,7 @@ function buildSpaceMap(): Map<number, SpaceMeta> {
   const map = new Map<number, SpaceMeta>();
   let counter = 0;
   monitors.forEach((mon, displayIndex) => {
+    if (mon["Display Identifier"] === "Main") mainDisplayNum = displayIndex + 1;
     for (const sp of mon.Spaces ?? []) {
       counter++;
       if (typeof sp.ManagedSpaceID === "number") {

@@ -1,6 +1,6 @@
 import { getPreferenceValues } from "@raycast/api";
 import { getActiveSession, upsertSession } from "./storage";
-import { getCurrentSpace } from "./native";
+import { getCurrentSpace, mainDisplay } from "./native";
 import { getIdleSeconds } from "./idle";
 import { spaceKey, SpaceInfo } from "./format";
 import { Preferences, Session, TrackerStatus } from "./types";
@@ -68,6 +68,14 @@ export async function tick(): Promise<TickResult> {
   }
 
   const now = Date.now();
+
+  // Only track time spent on the main display — ignore spaces on other displays.
+  if (current.display !== mainDisplay()) {
+    session.lastTick = undefined; // break the chain so off-display time isn't counted
+    session.lastSpaceKey = undefined;
+    await upsertSession(session);
+    return { status: "tracking", sessionName: session.name, currentSpace: current };
+  }
 
   // Inactivity handling.
   if (prefs.inactivityEnabled) {

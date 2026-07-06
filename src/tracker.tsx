@@ -13,7 +13,7 @@ import { tick, TickResult } from "./lib/tracker";
 import { getActiveSession, getSessions, setPaused, startSession, stopActiveSession } from "./lib/storage";
 import { exportSessionCsv } from "./lib/csv";
 import { formatDuration, sessionTotalSeconds, sortedSpaces, spaceInfoName, spaceName, SpaceInfo } from "./lib/format";
-import { listSpaces } from "./lib/native";
+import { listSpaces, mainDisplay } from "./lib/native";
 import { switchToSpace } from "./lib/spaceSwitch";
 import { ensureSwitchDefaults } from "./lib/desktopShortcuts";
 import { markMenuBarActive } from "./lib/menubar";
@@ -39,7 +39,7 @@ export default function Command() {
     let spaces: SpaceInfo[] = [];
     try {
       ensureSwitchDefaults(); // apply default key codes + enable system shortcuts (once)
-      spaces = listSpaces();
+      spaces = listSpaces().filter((s) => s.display === mainDisplay());
     } catch {
       spaces = [];
     }
@@ -93,7 +93,7 @@ export default function Command() {
 
       <MenuBarExtra.Section title="Session">
         <MenuBarExtra.Item
-          title="Start New Spacetime Session"
+          title="New Session"
           icon={Icon.Play}
           onAction={async () => {
             await tick(); // flush time into any current session before replacing it
@@ -125,7 +125,7 @@ export default function Command() {
         )}
         {status !== "idle" && (
           <MenuBarExtra.Item
-            title="Stop Spacetime Session"
+            title="Stop Session"
             icon={Icon.Stop}
             onAction={async () => {
               await tick(); // flush final delta
@@ -136,7 +136,7 @@ export default function Command() {
           />
         )}
         <MenuBarExtra.Item
-          title="Export Last Spacetime Session"
+          title="Export Last Session"
           icon={Icon.Download}
           onAction={async () => {
             const all = await getSessions();
@@ -162,7 +162,7 @@ export default function Command() {
               key={sp.id}
               title={spaceInfoName(sp)}
               icon={sp.id === activeId ? { source: Icon.CircleFilled, tintColor: Color.Green } : Icon.Desktop}
-              subtitle={sp.id === activeId ? "current" : `Display ${sp.display}`}
+              subtitle={sp.id === activeId ? "current" : undefined}
               onAction={async () => {
                 try {
                   if (sp.id != null) await switchToSpace(sp.id);

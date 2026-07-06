@@ -77,7 +77,7 @@
     },
     {
       "name": "export-last-session",
-      "title": "Export Last Spacetime Session",
+      "title": "Export Last Session",
       "subtitle": "Spacetime",
       "description": "Export the most recent session to a CSV file in Downloads.",
       "mode": "no-view"
