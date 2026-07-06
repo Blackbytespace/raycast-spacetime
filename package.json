@@ -13,7 +13,7 @@
   "commands": [
     {
       "name": "tracker",
-      "title": "Refresh Menubar",
+      "title": "Menubar",
       "subtitle": "Spacetime",
       "description": "Menu bar tracker: start/stop a session and record time per macOS space.",
       "mode": "menu-bar",
@@ -21,42 +21,42 @@
     },
     {
       "name": "sessions",
-      "title": "Spacetime Sessions",
+      "title": "Sessions",
       "subtitle": "Spacetime",
       "description": "Browse recorded sessions, view per-space breakdowns and export to CSV.",
       "mode": "view"
     },
     {
       "name": "spaces",
-      "title": "Spaces List",
+      "title": "Spaces",
       "subtitle": "Spacetime",
       "description": "List your macOS spaces: switch to one, or rename it. Names are used everywhere time is shown.",
       "mode": "view"
     },
     {
       "name": "name-current",
-      "title": "Rename Current Space",
+      "title": "Rename Space",
       "subtitle": "Spacetime",
       "description": "Name the space you're currently on.",
       "mode": "view"
     },
     {
       "name": "setup",
-      "title": "Setup Spacetime",
+      "title": "Setup",
       "subtitle": "Spacetime",
       "description": "Apply the macOS settings and permissions the extension needs to switch spaces.",
       "mode": "view"
     },
     {
       "name": "start-session",
-      "title": "Start New Spacetime Session",
+      "title": "New Session",
       "subtitle": "Spacetime",
       "description": "Start a new time-tracking session (replacing any current one).",
       "mode": "no-view"
     },
     {
       "name": "stop-session",
-      "title": "Stop Spacetime Session",
+      "title": "Stop Session",
       "subtitle": "Spacetime",
       "description": "Stop the active time-tracking session.",
       "mode": "no-view"
@@ -102,19 +102,35 @@
       "default": "2"
     },
     {
-      "name": "dailyPrompt",
-      "title": "Daily Session Reminder",
-      "label": "Ask to start a session once a day",
-      "description": "Once a day after 6am, show a prompt offering to start a new session.",
-      "type": "checkbox",
-      "required": false,
-      "default": true
-    },
-    {
       "name": "autoDailySession",
       "title": "Automatic Daily Session",
       "label": "Record a session automatically every day",
-      "description": "Automatically start a new session once a day (when you first use your computer), with no action. The daily reminder is skipped while this is on.",
+      "description": "Automatically start a new session once a day (when you first use your computer), with no action.",
+      "type": "checkbox",
+      "required": false,
+      "default": false
+    },
+    {
+      "name": "autoSaveSessions",
+      "title": "Save Sessions to Disk",
+      "label": "Export each session to CSV when it stops",
+      "description": "When a session is stopped (or replaced by a new one), automatically write it as a CSV file to the folder below.",
+      "type": "checkbox",
+      "required": false,
+      "default": false
+    },
+    {
+      "name": "autoSaveDirectory",
+      "title": "Sessions Folder",
+      "description": "Folder where stopped sessions are saved as CSV. Defaults to Downloads if left empty.",
+      "type": "directory",
+      "required": false
+    },
+    {
+      "name": "autoSaveSubfolders",
+      "title": "Organize by Year/Month",
+      "label": "Save into <year>/<month> subfolders",
+      "description": "Nest saved CSV files under year/month folders, e.g. 2026/07/session-2026-07-06-15h23.csv.",
       "type": "checkbox",
       "required": false,
       "default": false

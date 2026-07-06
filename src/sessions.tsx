@@ -23,8 +23,8 @@ import {
   startSession,
   stopActiveSession,
 } from "./lib/storage";
-import { clearEvents } from "./lib/watcher";
 import { tick } from "./lib/tracker";
+import { refreshMenuBar } from "./lib/menubar";
 import { exportSessionCsv, sessionToCsv } from "./lib/csv";
 import { formatDuration, formatHMS, sessionTotalSeconds, sortedSpaces, spaceName } from "./lib/format";
 import { Session } from "./lib/types";
@@ -34,9 +34,7 @@ export default function Command() {
   const [loading, setLoading] = useState(true);
 
   async function reload() {
-    // Fold any switch events the background watcher has recorded so the totals
-    // shown here are up to date (the menu-bar command only folds on its own,
-    // slower, refresh cadence).
+    // Flush elapsed time into the active session so its total is up to date here.
     await tick();
     const list = await getSessions();
     list.sort((a, b) => b.startedAt - a.startedAt);
@@ -46,7 +44,7 @@ export default function Command() {
 
   useEffect(() => {
     reload();
-    // Keep totals live while the view is open (folds new watcher events every 2s).
+    // Keep the active session's total live while the view is open.
     const timer = setInterval(reload, 2000);
     return () => clearInterval(timer);
   }, []);
@@ -65,6 +63,7 @@ export default function Command() {
               onAction={async () => {
                 await startSession();
                 await reload();
+                await refreshMenuBar();
                 await showToast({ style: Toast.Style.Success, title: "Session started" });
               }}
             />
@@ -171,6 +170,7 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
                     onAction={async () => {
                       await setPaused(false);
                       await onChange();
+                      await refreshMenuBar();
                     }}
                   />
                 ) : (
@@ -180,6 +180,7 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
                     onAction={async () => {
                       await setPaused(true);
                       await onChange();
+                      await refreshMenuBar();
                     }}
                   />
                 )}
@@ -189,6 +190,7 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
                   onAction={async () => {
                     await stopActiveSession();
                     await onChange();
+                    await refreshMenuBar();
                     await showToast({ style: Toast.Style.Success, title: "Session stopped" });
                   }}
                 />
@@ -200,6 +202,7 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
                 onAction={async () => {
                   await startSession();
                   await onChange();
+                  await refreshMenuBar();
                   await showToast({ style: Toast.Style.Success, title: "Session started" });
                 }}
               />
@@ -237,7 +240,6 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
                 });
                 if (ok) {
                   await clearAllSessions();
-                  clearEvents();
                   await onChange();
                   await showToast({ style: Toast.Style.Success, title: "All sessions cleared" });
                 }

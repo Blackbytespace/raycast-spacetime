@@ -1,5 +1,6 @@
 import { showHUD } from "@raycast/api";
 import { getActiveSession, setPaused } from "./lib/storage";
+import { refreshMenuBar } from "./lib/menubar";
 
 export default async function Command() {
   const active = await getActiveSession();
@@ -12,5 +13,6 @@ export default async function Command() {
     return;
   }
   await setPaused(false);
+  await refreshMenuBar();
   await showHUD(`Resumed “${active.name}”`);
 }

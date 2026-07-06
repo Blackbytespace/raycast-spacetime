@@ -1,8 +1,10 @@
 export interface Preferences {
   inactivityEnabled: boolean;
   inactivityMinutes: string;
-  dailyPrompt: boolean;
   autoDailySession: boolean;
+  autoSaveSessions: boolean;
+  autoSaveDirectory?: string;
+  autoSaveSubfolders: boolean;
 }
 
 /** Time accumulated in a single space during a session. */

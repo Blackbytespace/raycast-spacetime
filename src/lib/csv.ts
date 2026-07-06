@@ -23,34 +23,27 @@ export function sessionToCsv(session: Session): string {
   rows.push("");
 
   // Table.
-  rows.push(["Space", "Label", "Index", "Display", "Seconds", "Duration", "Percentage"].join(","));
+  rows.push(["Space", "Duration", "Percentage"].join(","));
   for (const rec of sortedSpaces(session)) {
     const pct = total > 0 ? ((rec.seconds / total) * 100).toFixed(1) : "0.0";
-    rows.push(
-      [
-        csvEscape(spaceName(rec)),
-        csvEscape(rec.label),
-        rec.index,
-        rec.display,
-        Math.round(rec.seconds),
-        formatHMS(rec.seconds),
-        `${pct}%`,
-      ].join(","),
-    );
+    rows.push([csvEscape(spaceName(rec)), formatHMS(rec.seconds), `${pct}%`].join(","));
   }
 
   return rows.join("\n") + "\n";
 }
 
-function safeFilename(name: string): string {
-  return name.replace(/[^a-z0-9-_]+/gi, "_").replace(/^_+|_+$/g, "") || "session";
+/** CSV filename for a session, based on when it started, e.g. "session-2026-07-06-13h49.csv". */
+export function sessionCsvFilename(session: Session): string {
+  const d = new Date(session.startedAt);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}h${pad(d.getMinutes())}`;
+  return `session-${stamp}.csv`;
 }
 
 /** Write the CSV to ~/Downloads and return the file path. */
 export function exportSessionCsv(session: Session): string {
   const csv = sessionToCsv(session);
-  const filename = `space-time-${safeFilename(session.name)}-${session.id}.csv`;
-  const path = join(homedir(), "Downloads", filename);
+  const path = join(homedir(), "Downloads", sessionCsvFilename(session));
   writeFileSync(path, csv, "utf8");
   return path;
 }

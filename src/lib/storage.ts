@@ -1,5 +1,6 @@
 import { LocalStorage } from "@raycast/api";
 import { Session } from "./types";
+import { autoSaveSession } from "./autosave";
 
 const SESSIONS_KEY = "sessions";
 
@@ -58,31 +59,43 @@ export function createSession(name: string): Session {
 export async function startSession(name?: string): Promise<Session> {
   const sessions = await getSessions();
   const now = Date.now();
+  const stopped: Session[] = [];
   for (const s of sessions) {
     if (s.isActive) {
       s.isActive = false;
       s.stoppedAt = now;
       s.lastTick = undefined;
+      stopped.push(s);
     }
   }
   const label = name?.trim() || defaultSessionName();
   const session = createSession(label);
   sessions.push(session);
   await saveSessions(sessions);
+  for (const s of stopped) await autoSaveSession(s); // persist the replaced session if enabled
   return session;
 }
 
-export async function stopActiveSession(): Promise<void> {
+/** Stops the active session. Returns the CSV path if auto-save wrote one. */
+export async function stopActiveSession(): Promise<string | undefined> {
   const sessions = await getSessions();
   const now = Date.now();
+  const stopped: Session[] = [];
   for (const s of sessions) {
     if (s.isActive) {
       s.isActive = false;
       s.stoppedAt = now;
       s.lastTick = undefined;
+      stopped.push(s);
     }
   }
   await saveSessions(sessions);
+  let savedPath: string | undefined;
+  for (const s of stopped) {
+    const p = await autoSaveSession(s);
+    if (p) savedPath = p;
+  }
+  return savedPath;
 }
 
 export async function setPaused(paused: boolean): Promise<void> {

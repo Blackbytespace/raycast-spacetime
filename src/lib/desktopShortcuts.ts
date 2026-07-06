@@ -66,7 +66,9 @@ const DIGIT_KEYCODE: Record<number, SwitchDefault> = {
 };
 
 function setupMarker(): string {
-  return join(environment.supportPath, ".switch-shortcuts-enabled-v1");
+  // Bump the suffix to re-run the one-time first-run setup (e.g. after adding a
+  // new step like disabling auto-rearrange) for existing installs.
+  return join(environment.supportPath, ".switch-shortcuts-enabled-v2");
 }
 
 /** Fills in the default key code for any space (index 1–11) that lacks one. */
@@ -191,8 +193,15 @@ export function runFullSetup(spaces: SpaceInfo[]): void {
 }
 
 /**
- * Called automatically on command load. Ensures every space has its default key
- * code, and enables the system shortcuts exactly once (gated by a marker file).
+ * Called automatically on command load. Applies everything the extension needs
+ * to work, so a fresh install is ready without visiting the Setup screen:
+ *   - every space gets its default key code (idempotent, runs each load),
+ *   - and, exactly once (gated by a marker file), the macOS "Switch to Desktop N"
+ *     shortcuts are enabled and "Automatically rearrange Spaces" is turned off so
+ *     desktop numbering stays stable.
+ *
+ * Accessibility permission is the only remaining requirement, and it cannot be
+ * granted programmatically — macOS prompts for it on the first switch keystroke.
  */
 export function ensureSwitchDefaults(): void {
   let spaces: SpaceInfo[];
@@ -208,6 +217,9 @@ export function ensureSwitchDefaults(): void {
   if (!existsSync(setupMarker())) {
     try {
       enableSystemShortcuts(spaces);
+      // Stable numbering is required for Ctrl+N to map to the right desktop.
+      // Restarts the Dock, but only this once (marker-gated below).
+      if (isAutoRearrangeOn()) disableAutoRearrange();
       mkdirSync(environment.supportPath, { recursive: true });
       writeFileSync(setupMarker(), "", "utf8");
     } catch {

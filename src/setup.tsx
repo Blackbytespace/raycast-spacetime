@@ -1,6 +1,18 @@
-import { Action, ActionPanel, Color, Icon, List, Toast, open, showToast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Icon,
+  LaunchType,
+  List,
+  Toast,
+  launchCommand,
+  open,
+  showToast,
+} from "@raycast/api";
 import { useEffect, useState } from "react";
 import { listSpaces } from "./lib/native";
+import { isMenuBarActive } from "./lib/menubar";
 import {
   areSystemShortcutsEnabled,
   assignDefaultKeyCodes,
@@ -23,6 +35,7 @@ export default function Command() {
   const [shortcuts, setShortcuts] = useState<Tri>(undefined);
   const [rearrangeOff, setRearrangeOff] = useState<Tri>(undefined);
   const [keyCodes, setKeyCodes] = useState<Tri>(undefined);
+  const [menubar, setMenubar] = useState<Tri>(undefined);
   const [accessibility, setAccessibility] = useState<Tri>(undefined);
   const [loading, setLoading] = useState(true);
 
@@ -37,6 +50,7 @@ export default function Command() {
     setShortcuts(areSystemShortcutsEnabled(sp));
     setRearrangeOff(!isAutoRearrangeOn());
     setKeyCodes(spacesHaveKeyCodes(sp));
+    setMenubar(isMenuBarActive());
     setLoading(false);
     if (withAccessibility) {
       setAccessibility(undefined);
@@ -61,6 +75,12 @@ export default function Command() {
   const runAll = async () => {
     try {
       runFullSetup(spaces);
+      // Also register the menu-bar icon by launching its command once.
+      try {
+        await launchCommand({ name: "tracker", type: LaunchType.UserInitiated });
+      } catch {
+        // menu bar can still be activated from its own row below
+      }
       await refresh(true);
       await showToast({
         style: Toast.Style.Success,
@@ -76,16 +96,29 @@ export default function Command() {
     }
   };
 
-  const runFullSetupAction = (
-    <Action
-      title="Run Full Setup"
-      icon={Icon.Wand}
-      onAction={runAll}
-    />
-  );
+  const runFullSetupAction = <Action title="Run Full Setup" icon={Icon.Wand} onAction={runAll} />;
   const recheckAction = <Action title="Re-check" icon={Icon.ArrowClockwise} onAction={() => refresh(true)} />;
 
-  const allGood = shortcuts && rearrangeOff && keyCodes && accessibility;
+  const showMenuBar = async () => {
+    try {
+      await launchCommand({ name: "tracker", type: LaunchType.UserInitiated });
+      // Give the menu-bar command a moment to render and write its marker.
+      setTimeout(() => void refresh(false), 800);
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Menu bar activated",
+        message: "Look for the Spacetime ⏰ icon in your menu bar.",
+      });
+    } catch (err) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Could not open the menu bar command",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  const allGood = shortcuts && rearrangeOff && keyCodes && menubar && accessibility;
 
   return (
     <List isLoading={loading}>
@@ -170,6 +203,19 @@ export default function Command() {
                 }}
               />
               {recheckAction}
+            </ActionPanel>
+          }
+        />
+        <List.Item
+          icon={Icon.AppWindowList}
+          title="Menu bar item"
+          subtitle="Registers the Spacetime icon in your menu bar (run once)"
+          accessories={[statusAccessory(menubar)]}
+          actions={
+            <ActionPanel>
+              <Action title="Show Menu Bar Icon" icon={Icon.AppWindowList} onAction={showMenuBar} />
+              {recheckAction}
+              {runFullSetupAction}
             </ActionPanel>
           }
         />

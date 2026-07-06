@@ -13,17 +13,16 @@ import { tick, TickResult } from "./lib/tracker";
 import { getActiveSession, getSessions, setPaused, startSession, stopActiveSession } from "./lib/storage";
 import { exportSessionCsv } from "./lib/csv";
 import { formatDuration, sessionTotalSeconds, sortedSpaces, spaceInfoName, spaceName, SpaceInfo } from "./lib/format";
-import { installWatcher, isWatcherRunning, uninstallWatcher } from "./lib/watcher";
 import { listSpaces } from "./lib/native";
 import { switchToSpace } from "./lib/spaceSwitch";
 import { ensureSwitchDefaults } from "./lib/desktopShortcuts";
-import { maybeAutoStartDailySession, maybeShowDailyPrompt, showSessionPrompt } from "./lib/notify";
+import { markMenuBarActive } from "./lib/menubar";
+import { maybeAutoStartDailySession } from "./lib/notify";
 import { Preferences, Session } from "./lib/types";
 
 interface State {
   result: TickResult;
   session?: Session;
-  watcherRunning: boolean;
   spaces: SpaceInfo[];
 }
 
@@ -33,10 +32,10 @@ export default function Command() {
   const prefs = getPreferenceValues<Preferences>();
 
   async function refresh() {
+    markMenuBarActive(); // the icon is registered as soon as this command renders
     await maybeAutoStartDailySession(); // auto-start today's session first, if enabled
     const result = await tick();
     const session = await getActiveSession();
-    const watcherRunning = isWatcherRunning();
     let spaces: SpaceInfo[] = [];
     try {
       ensureSwitchDefaults(); // apply default key codes + enable system shortcuts (once)
@@ -44,9 +43,8 @@ export default function Command() {
     } catch {
       spaces = [];
     }
-    setState({ result, session, watcherRunning, spaces });
+    setState({ result, session, spaces });
     setLoading(false);
-    void maybeShowDailyPrompt(); // once-a-day "start a session?" prompt (non-blocking)
   }
 
   useEffect(() => {
@@ -55,7 +53,6 @@ export default function Command() {
 
   const status = state?.result.status ?? "idle";
   const session = state?.session;
-  const watcherRunning = state?.watcherRunning ?? false;
   const spaces = state?.spaces ?? [];
   const activeId = state?.result.currentSpace?.id;
 
@@ -73,10 +70,6 @@ export default function Command() {
             {state?.result.currentSpace && (
               <MenuBarExtra.Item title={`Current: ${spaceInfoName(state.result.currentSpace)}`} icon={Icon.Desktop} />
             )}
-            <MenuBarExtra.Item
-              title={`Precision: ${watcherRunning ? "Live watcher (~1s)" : "Menu-bar refresh only"}`}
-              icon={watcherRunning ? Icon.Bolt : Icon.Clock}
-            />
             {state?.result.error && <MenuBarExtra.Item title={state.result.error} icon={Icon.Warning} />}
           </MenuBarExtra.Section>
 
@@ -106,6 +99,7 @@ export default function Command() {
             await tick(); // flush time into any current session before replacing it
             await startSession();
             await tick();
+            await refresh(); // re-render the menu bar with the new state right away
           }}
         />
         {status !== "idle" && !session?.paused && (
@@ -115,6 +109,7 @@ export default function Command() {
             onAction={async () => {
               await tick(); // flush time up to now before pausing
               await setPaused(true);
+              await refresh();
             }}
           />
         )}
@@ -124,6 +119,7 @@ export default function Command() {
             icon={Icon.Play}
             onAction={async () => {
               await setPaused(false);
+              await refresh();
             }}
           />
         )}
@@ -133,7 +129,9 @@ export default function Command() {
             icon={Icon.Stop}
             onAction={async () => {
               await tick(); // flush final delta
-              await stopActiveSession();
+              const savedPath = await stopActiveSession();
+              if (savedPath) await showHUD(`Session saved to ${savedPath}`);
+              await refresh();
             }}
           />
         )}
@@ -177,41 +175,6 @@ export default function Command() {
         </MenuBarExtra.Section>
       )}
 
-      <MenuBarExtra.Section title="Live Tracking (background watcher)">
-        <MenuBarExtra.Item
-          title={watcherRunning ? "Watcher: Running" : "Watcher: Stopped"}
-          icon={watcherRunning ? { source: Icon.CheckCircle, tintColor: Color.Green } : Icon.Circle}
-        />
-        {watcherRunning ? (
-          <MenuBarExtra.Item
-            title="Stop Live Watcher"
-            icon={Icon.XMarkCircle}
-            onAction={async () => {
-              try {
-                uninstallWatcher();
-                await showHUD("Live watcher stopped");
-              } catch (err) {
-                await showHUD(`Failed to stop watcher: ${err instanceof Error ? err.message : String(err)}`);
-              }
-            }}
-          />
-        ) : (
-          <MenuBarExtra.Item
-            title="Start Live Watcher"
-            icon={Icon.Bolt}
-            tooltip="Records exact space-switch times in the background for precise per-space totals"
-            onAction={async () => {
-              try {
-                installWatcher();
-                await showHUD("Live watcher started");
-              } catch (err) {
-                await showHUD(`Failed to start watcher: ${err instanceof Error ? err.message : String(err)}`);
-              }
-            }}
-          />
-        )}
-      </MenuBarExtra.Section>
-
       <MenuBarExtra.Section>
         <MenuBarExtra.Item
           title="Rename Current Space…"
@@ -240,7 +203,6 @@ export default function Command() {
           subtitle={prefs.inactivityEnabled ? `idle pause @ ${prefs.inactivityMinutes}m` : "idle pause off"}
           onAction={openExtensionPreferences}
         />
-        <MenuBarExtra.Item title="Show Daily Reminder (Dev)" icon={Icon.Bell} onAction={() => showSessionPrompt()} />
       </MenuBarExtra.Section>
     </MenuBarExtra>
   );
@@ -249,13 +211,8 @@ export default function Command() {
 function menuBarSummary(state?: State): { icon: Icon | { source: Icon; tintColor: Color }; title?: string } {
   const status = state?.result.status ?? "idle";
   switch (status) {
-    case "tracking": {
-      const space = state?.result.currentSpace;
-      return {
-        icon: { source: Icon.Clock, tintColor: Color.Green },
-        title: space ? spaceInfoName(space) : undefined,
-      };
-    }
+    case "tracking":
+      return { icon: { source: Icon.Clock, tintColor: Color.Green } };
     case "paused":
       return { icon: { source: Icon.Pause, tintColor: Color.Yellow }, title: "Paused" };
     case "auto-paused":

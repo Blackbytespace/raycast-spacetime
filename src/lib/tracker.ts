@@ -1,9 +1,8 @@
 import { getPreferenceValues } from "@raycast/api";
 import { getActiveSession, upsertSession } from "./storage";
-import { getCurrentSpace, spaceInfoForId } from "./native";
+import { getCurrentSpace } from "./native";
 import { getIdleSeconds } from "./idle";
 import { spaceKey, SpaceInfo } from "./format";
-import { clearEvents, consumeEvents } from "./watcher";
 import { Preferences, Session, TrackerStatus } from "./types";
 
 /**
@@ -40,24 +39,18 @@ function ensureRecord(session: Session, key: string, info: SpaceInfo): void {
 }
 
 /**
- * One tracking tick. Called on every menu-bar refresh interval.
- *
- * If the background watcher is running, it records the exact timestamp of each
- * space switch to an events file. Here we fold those precise timestamps into the
- * session, so a switch is attributed to the instant it happened — even switches
- * that occurred between Raycast's (slow) menu-bar refreshes. With no events
- * present this reduces to plain interval polling of the current space.
+ * One tracking tick. Called on every menu-bar refresh interval (and before any
+ * session mutation). Attributes the time elapsed since the last tick to the
+ * space the user was in, then records the current space for the next interval.
  */
 export async function tick(): Promise<TickResult> {
   const prefs = getPreferenceValues<Preferences>();
   const session = await getActiveSession();
 
   if (!session) {
-    clearEvents();
     return { status: "idle" };
   }
   if (session.paused) {
-    clearEvents(); // discard switches that happened while manually paused
     return { status: "paused", sessionName: session.name };
   }
 
@@ -67,7 +60,6 @@ export async function tick(): Promise<TickResult> {
   } catch (err) {
     session.lastTick = undefined; // don't count time we can't attribute
     await upsertSession(session);
-    clearEvents();
     return {
       status: "error",
       sessionName: session.name,
@@ -86,44 +78,24 @@ export async function tick(): Promise<TickResult> {
       session.lastSpaceKey = spaceKey(current);
       ensureRecord(session, spaceKey(current), current);
       await upsertSession(session);
-      clearEvents(); // discard switches that happened while idle
       return { status: "auto-paused", sessionName: session.name, currentSpace: current };
     }
   }
   session.autoPaused = false;
 
-  // Precise switch timeline from the background watcher (empty when it isn't running).
-  const events = consumeEvents().filter((e) => e.t >= session.startedAt && e.t <= now + 1000);
+  const liveKey = spaceKey(current);
+  ensureRecord(session, liveKey, current);
 
-  let cursor = session.lastTick ?? null;
-  let curKey = session.lastSpaceKey ?? null;
-
-  const attribute = (key: string | null, from: number | null, to: number) => {
-    if (key == null || from == null) return;
-    const delta = (to - from) / 1000;
+  // Attribute the interval since the last tick to the space we were in then.
+  const from = session.lastTick ?? null;
+  const key = session.lastSpaceKey ?? liveKey;
+  if (from != null) {
+    const delta = (now - from) / 1000;
     if (delta > 0 && delta <= MAX_TICK_DELTA_SECONDS) {
       const rec = session.spaces[key];
       if (rec) rec.seconds += delta;
     }
-  };
-
-  for (const e of events) {
-    const info = spaceInfoForId(e.id);
-    const key = spaceKey(info);
-    ensureRecord(session, key, info);
-    if (cursor != null && e.t > cursor) {
-      attribute(curKey, cursor, e.t);
-      cursor = e.t;
-    } else if (cursor == null) {
-      cursor = e.t; // establish a baseline from the first known switch
-    }
-    curKey = key;
   }
-
-  // Trailing interval up to now, attributed to the live current space.
-  const liveKey = spaceKey(current);
-  ensureRecord(session, liveKey, current);
-  attribute(curKey ?? liveKey, cursor, now);
 
   session.lastTick = now;
   session.lastSpaceKey = liveKey;

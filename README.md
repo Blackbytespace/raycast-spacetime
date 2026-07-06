@@ -34,28 +34,11 @@ actual wall-clock delta between ticks, so totals stay accurate regardless of the
 precisely a space *switch* is attributed. Gaps larger than one hour (e.g. sleep with inactivity detection off) are
 ignored to avoid bogus jumps. All data is stored locally via Raycast `LocalStorage`; only one session is active at a time.
 
-## Live watcher (precise timing)
-
-Raycast redraws a menu-bar command only on its own background-refresh cadence (which it clamps and may delay), so the
-title can lag behind a space switch by several seconds, and quick A→B→A switches within a refresh window can be
-mis-attributed. To make the recorded **data** precise regardless of that, enable the **Live Watcher** from the menu bar
-(*Live Tracking → Start Live Watcher*).
-
-It installs a small **launchd agent** (`com.raycast.space-time-tracker.watcher`) that runs the SkyLight helper in a
-~1-second loop and appends a timestamped event on every space change. On its next refresh the tracker folds those exact
-timestamps into the active session, so per-space totals are accurate to the moment of each switch — even for switches
-that happened between Raycast refreshes. The agent uses `KeepAlive`/`RunAtLoad`, so it survives logout and reboot until
-you stop it (*Stop Live Watcher*, which boots it out and removes the plist).
-
-> Note: the watcher improves the *accuracy of recorded time*. It does **not** make the always-visible menu-bar title
-> update sub-second — that is bounded by Raycast's menu-bar refresh and cannot be pushed faster from an extension. The
-> space shown when you *open* the dropdown is always live.
-
 ## Commands
 
 | Command | Mode | Description |
 | --- | --- | --- |
-| **Space Tracker** | Menu bar | The tracking engine + start / pause / resume / stop controls, live-watcher toggle, and a per-space breakdown. |
+| **Space Tracker** | Menu bar | The tracking engine + start / pause / resume / stop controls and a per-space breakdown. |
 | **Tracking Sessions** | View | Browse recorded sessions, see per-space charts, rename, delete, and export to CSV. |
 | **Spaces List** | View | List all spaces: the default action switches to a space; each also has a Rename Space action. |
 | **Name Current Space** | View | Name the space you're currently on (also launchable from the menu bar). |
@@ -104,22 +87,14 @@ prefilled for the active space. It's also available straight from the menu bar (
 | --- | --- | --- |
 | `Inactivity Detection` | on | Pause tracking automatically when idle. |
 | `Idle Threshold (minutes)` | `2` | Minutes of inactivity before auto-pause. |
-| `Daily Session Reminder` | on | Once a day after 6am, prompt to start a new session (skipped if one is already running). |
 | `Automatic Daily Session` | off | Start a new session automatically once a day, with no prompt or action. |
-
-## Daily session reminder
-
-When enabled, the first time the menu-bar command runs after 6am each day (and no session is active), a dialog asks
-*"Would you like to start a new Spacetime session for today?"* with **Start a session** / **No thanks**. Choosing *Start
-a session* launches the Start command via a Raycast deeplink. It's shown at most once per day. The menu bar also has a
-**Show Daily Reminder (Dev)** item to trigger the dialog on demand for testing.
 
 ## Automatic daily session
 
 Enable **Automatic Daily Session** to get one session per day with zero interaction. The first time the menu-bar command
 runs each calendar day (i.e. when you next use/wake the computer), it starts a new session automatically — replacing a
-stale session left running from a previous day, or keeping one you already started today. While this is on, the daily
-reminder dialog is suppressed. It's tracked once per day via LocalStorage, so it won't start more than one.
+stale session left running from a previous day, or keeping one you already started today. It's tracked once per day via
+LocalStorage, so it won't start more than one.
 
 ## Requirements
 

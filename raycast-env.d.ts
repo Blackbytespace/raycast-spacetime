@@ -12,10 +12,14 @@ type ExtensionPreferences = {
   "inactivityEnabled": boolean,
   /** Idle Threshold (minutes) - How many minutes of inactivity before tracking auto-pauses. */
   "inactivityMinutes": string,
-  /** Daily Session Reminder - Once a day after 6am, show a prompt offering to start a new session. */
-  "dailyPrompt": boolean,
-  /** Automatic Daily Session - Automatically start a new session once a day (when you first use your computer), with no action. The daily reminder is skipped while this is on. */
-  "autoDailySession": boolean
+  /** Automatic Daily Session - Automatically start a new session once a day (when you first use your computer), with no action. */
+  "autoDailySession": boolean,
+  /** Save Sessions to Disk - When a session is stopped (or replaced by a new one), automatically write it as a CSV file to the folder below. */
+  "autoSaveSessions": boolean,
+  /** Sessions Folder - Folder where stopped sessions are saved as CSV. Defaults to Downloads if left empty. */
+  "autoSaveDirectory"?: string,
+  /** Organize by Year/Month - Nest saved CSV files under year/month folders, e.g. 2026/07/session-2026-07-06-15h23.csv. */
+  "autoSaveSubfolders": boolean
 }
 
 /** Preferences accessible in all the extension's commands */

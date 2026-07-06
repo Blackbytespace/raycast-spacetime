@@ -47,11 +47,7 @@ export default function Command() {
   }, []);
 
   return (
-    <List
-      isLoading={loading}
-      selectedItemId={selectedId}
-      onSelectionChange={(id) => setSelectedId(id ?? undefined)}
-    >
+    <List isLoading={loading} selectedItemId={selectedId} onSelectionChange={(id) => setSelectedId(id ?? undefined)}>
       {error && <List.EmptyView icon={Icon.Warning} title="Could not read spaces" description={error} />}
       {spaces.map((space) => {
         const custom = nameForId(space.id);
@@ -130,11 +126,6 @@ export default function Command() {
                       });
                     }
                   }}
-                />
-                <Action
-                  title="Refresh"
-                  icon={Icon.ArrowClockwise}
-                  onAction={reload}
                 />
               </ActionPanel>
             }
