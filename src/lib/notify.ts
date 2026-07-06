@@ -1,5 +1,5 @@
 import { LocalStorage, getPreferenceValues } from "@raycast/api";
-import { getActiveSession, startSession } from "./storage";
+import { finalizeStaleDailySession, getActiveSession, startSession } from "./storage";
 import { tick } from "./tracker";
 import { Preferences } from "./types";
 
@@ -21,8 +21,8 @@ function sameDay(ts: number): boolean {
  * When "Record a session automatically every day" is enabled: starts a new
  * session once per calendar day (the first time the menu-bar command runs that
  * day — i.e. when you next use/wake the computer), with no user action. A stale
- * session left running from a previous day is replaced; a session already
- * started today is kept.
+ * session left running from a previous day is closed out (backdated to its last
+ * activity); a session already started today is kept.
  */
 export async function maybeAutoStartDailySession(): Promise<void> {
   const prefs = getPreferenceValues<Preferences>();
@@ -31,6 +31,10 @@ export async function maybeAutoStartDailySession(): Promise<void> {
   const today = todayKey();
   if ((await LocalStorage.getItem<string>(AUTO_SESSION_DATE_KEY)) === today) return;
 
+  // Close out yesterday's session first (backdated to its last activity) so the new session
+  // starts clean and the old one's stop time isn't stamped with "now".
+  await finalizeStaleDailySession();
+
   const active = await getActiveSession();
   if (active && sameDay(active.startedAt)) {
     // A session for today already exists — just mark the day handled.
@@ -38,7 +42,7 @@ export async function maybeAutoStartDailySession(): Promise<void> {
     return;
   }
 
-  await startSession(); // replaces any stale (previous-day) active session
+  await startSession(); // no stale session to clobber — finalize already closed it
   await tick(); // establish the tracking baseline immediately
   await LocalStorage.setItem(AUTO_SESSION_DATE_KEY, today);
 }

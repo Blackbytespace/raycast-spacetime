@@ -1,8 +1,14 @@
-import { LocalStorage } from "@raycast/api";
-import { Session } from "./types";
+import { LocalStorage, getPreferenceValues } from "@raycast/api";
+import { Preferences, Session } from "./types";
 import { autoSaveSession } from "./autosave";
 
 const SESSIONS_KEY = "sessions";
+
+function sameCalendarDay(aMs: number, bMs: number): boolean {
+  const a = new Date(aMs);
+  const b = new Date(bMs);
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
 
 export async function getSessions(): Promise<Session[]> {
   const raw = await LocalStorage.getItem<string>(SESSIONS_KEY);
@@ -96,6 +102,32 @@ export async function stopActiveSession(): Promise<string | undefined> {
     if (p) savedPath = p;
   }
   return savedPath;
+}
+
+/**
+ * If Automatic Daily Session is on, close any active session left over from a previous calendar
+ * day — backdated to its last recorded activity — and auto-save it. Does NOT start a new session
+ * (the daily auto-start handles that). Called before every tick so a stale session can never
+ * accumulate the new day's time.
+ */
+export async function finalizeStaleDailySession(): Promise<void> {
+  const prefs = getPreferenceValues<Preferences>();
+  if (!prefs.autoDailySession) return;
+  const sessions = await getSessions();
+  const now = Date.now();
+  let finalized: Session | undefined;
+  for (const s of sessions) {
+    if (s.isActive && !sameCalendarDay(s.startedAt, now)) {
+      s.isActive = false;
+      s.stoppedAt = s.lastActiveAt ?? s.lastTick ?? s.startedAt; // backdate to last activity
+      s.lastTick = undefined;
+      finalized = s;
+    }
+  }
+  if (finalized) {
+    await saveSessions(sessions);
+    await autoSaveSession(finalized);
+  }
 }
 
 export async function setPaused(paused: boolean): Promise<void> {

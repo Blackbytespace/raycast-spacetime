@@ -1,5 +1,5 @@
 import { getPreferenceValues } from "@raycast/api";
-import { getActiveSession, upsertSession } from "./storage";
+import { finalizeStaleDailySession, getActiveSession, upsertSession } from "./storage";
 import { getCurrentSpace, mainDisplay } from "./native";
 import { getIdleSeconds } from "./idle";
 import { spaceKey, SpaceInfo } from "./format";
@@ -45,6 +45,9 @@ function ensureRecord(session: Session, key: string, info: SpaceInfo): void {
  */
 export async function tick(): Promise<TickResult> {
   const prefs = getPreferenceValues<Preferences>();
+  // Close out a session left over from a previous day before attributing any time, so the new
+  // day's time can never leak into it (only active when Automatic Daily Session is on).
+  await finalizeStaleDailySession();
   const session = await getActiveSession();
 
   if (!session) {
@@ -106,6 +109,7 @@ export async function tick(): Promise<TickResult> {
   }
 
   session.lastTick = now;
+  session.lastActiveAt = now; // last moment we recorded real activity (used to backdate stop time)
   session.lastSpaceKey = liveKey;
   await upsertSession(session);
 

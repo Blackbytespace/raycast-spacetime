@@ -36,6 +36,8 @@ export interface Session {
   autoPaused: boolean;
   /** Timestamp (ms) of the last tracking tick; undefined resets the delta clock. */
   lastTick?: number;
+  /** Timestamp (ms) of the last tick that actually recorded activity; used to backdate stop time. */
+  lastActiveAt?: number;
   /** Space key the user was in at the last tick. */
   lastSpaceKey?: string;
   /** Per-space accumulated time, keyed by SpaceRecord.key. */
