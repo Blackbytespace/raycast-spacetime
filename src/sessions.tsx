@@ -1,0 +1,308 @@
+import {
+  Action,
+  ActionPanel,
+  Alert,
+  Color,
+  confirmAlert,
+  Form,
+  Icon,
+  List,
+  Toast,
+  showToast,
+  showInFinder,
+  useNavigation,
+  Clipboard,
+} from "@raycast/api";
+import { useEffect, useState } from "react";
+import {
+  clearAllSessions,
+  deleteSession,
+  getSessions,
+  renameSession,
+  setPaused,
+  startSession,
+  stopActiveSession,
+} from "./lib/storage";
+import { clearEvents } from "./lib/watcher";
+import { tick } from "./lib/tracker";
+import { exportSessionCsv, sessionToCsv } from "./lib/csv";
+import { formatDuration, formatHMS, sessionTotalSeconds, sortedSpaces, spaceName } from "./lib/format";
+import { Session } from "./lib/types";
+
+export default function Command() {
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function reload() {
+    // Fold any switch events the background watcher has recorded so the totals
+    // shown here are up to date (the menu-bar command only folds on its own,
+    // slower, refresh cadence).
+    await tick();
+    const list = await getSessions();
+    list.sort((a, b) => b.startedAt - a.startedAt);
+    setSessions(list);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    reload();
+    // Keep totals live while the view is open (folds new watcher events every 2s).
+    const timer = setInterval(reload, 2000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <List isLoading={loading} isShowingDetail={sessions.length > 0}>
+      <List.EmptyView
+        icon={Icon.Clock}
+        title="No sessions yet"
+        description="Start one from the Space Tracker menu bar command."
+        actions={
+          <ActionPanel>
+            <Action
+              title="Start New Session"
+              icon={Icon.Play}
+              onAction={async () => {
+                await startSession();
+                await reload();
+                await showToast({ style: Toast.Style.Success, title: "Session started" });
+              }}
+            />
+          </ActionPanel>
+        }
+      />
+      {sessions.map((session) => (
+        <SessionItem key={session.id} session={session} onChange={reload} />
+      ))}
+    </List>
+  );
+}
+
+function SessionItem({ session, onChange }: { session: Session; onChange: () => Promise<void> }) {
+  const total = sessionTotalSeconds(session);
+  const spaces = sortedSpaces(session);
+
+  const accessories: List.Item.Accessory[] = [];
+  if (session.isActive) {
+    accessories.push({
+      tag: {
+        value: session.paused ? "Paused" : "Active",
+        color: session.paused ? Color.Yellow : Color.Green,
+      },
+    });
+  }
+  accessories.push({ text: formatDuration(total) });
+
+  const markdown = buildDetailMarkdown(session);
+
+  return (
+    <List.Item
+      icon={session.isActive ? { source: Icon.CircleFilled, tintColor: Color.Green } : Icon.Clock}
+      title={session.name}
+      subtitle={new Date(session.startedAt).toLocaleString()}
+      accessories={accessories}
+      detail={
+        <List.Item.Detail
+          markdown={markdown}
+          metadata={
+            <List.Item.Detail.Metadata>
+              <List.Item.Detail.Metadata.Label title="Started" text={new Date(session.startedAt).toLocaleString()} />
+              <List.Item.Detail.Metadata.Label
+                title="Stopped"
+                text={session.stoppedAt ? new Date(session.stoppedAt).toLocaleString() : "In progress"}
+              />
+              <List.Item.Detail.Metadata.Label title="Total" text={formatHMS(total)} />
+              <List.Item.Detail.Metadata.Label title="Spaces tracked" text={String(spaces.length)} />
+              <List.Item.Detail.Metadata.Separator />
+              {spaces.map((rec) => (
+                <List.Item.Detail.Metadata.Label
+                  key={rec.key}
+                  title={spaceName(rec)}
+                  text={`${formatHMS(rec.seconds)}  (${total > 0 ? ((rec.seconds / total) * 100).toFixed(0) : "0"}%)`}
+                />
+              ))}
+            </List.Item.Detail.Metadata>
+          }
+        />
+      }
+      actions={
+        <ActionPanel>
+          <ActionPanel.Section>
+            {/* eslint-disable-next-line @raycast/prefer-title-case */}
+            <Action
+              title="Export to CSV"
+              icon={Icon.Download}
+              onAction={async () => {
+                try {
+                  const path = exportSessionCsv(session);
+                  await showToast({
+                    style: Toast.Style.Success,
+                    title: "Exported to Downloads",
+                    message: path,
+                    primaryAction: { title: "Show in Finder", onAction: () => showInFinder(path) },
+                  });
+                } catch (err) {
+                  await showToast({
+                    style: Toast.Style.Failure,
+                    title: "Export failed",
+                    message: String(err),
+                  });
+                }
+              }}
+            />
+            {/* eslint-disable-next-line @raycast/prefer-title-case */}
+            <Action
+              title="Copy CSV to Clipboard"
+              icon={Icon.Clipboard}
+              onAction={async () => {
+                await Clipboard.copy(sessionToCsv(session));
+                await showToast({ style: Toast.Style.Success, title: "CSV copied to clipboard" });
+              }}
+            />
+          </ActionPanel.Section>
+
+          <ActionPanel.Section>
+            {session.isActive ? (
+              <>
+                {session.paused ? (
+                  <Action
+                    title="Resume Tracking"
+                    icon={Icon.Play}
+                    onAction={async () => {
+                      await setPaused(false);
+                      await onChange();
+                    }}
+                  />
+                ) : (
+                  <Action
+                    title="Pause Tracking"
+                    icon={Icon.Pause}
+                    onAction={async () => {
+                      await setPaused(true);
+                      await onChange();
+                    }}
+                  />
+                )}
+                <Action
+                  title="Stop Session"
+                  icon={Icon.Stop}
+                  onAction={async () => {
+                    await stopActiveSession();
+                    await onChange();
+                    await showToast({ style: Toast.Style.Success, title: "Session stopped" });
+                  }}
+                />
+              </>
+            ) : (
+              <Action
+                title="Start New Session"
+                icon={Icon.Play}
+                onAction={async () => {
+                  await startSession();
+                  await onChange();
+                  await showToast({ style: Toast.Style.Success, title: "Session started" });
+                }}
+              />
+            )}
+            <RenameAction session={session} onChange={onChange} />
+          </ActionPanel.Section>
+
+          <ActionPanel.Section>
+            <Action
+              title="Delete Session"
+              icon={Icon.Trash}
+              style={Action.Style.Destructive}
+              onAction={async () => {
+                const ok = await confirmAlert({
+                  title: "Delete session?",
+                  message: `"${session.name}" will be permanently removed.`,
+                  primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+                });
+                if (ok) {
+                  await deleteSession(session.id);
+                  await onChange();
+                  await showToast({ style: Toast.Style.Success, title: "Session deleted" });
+                }
+              }}
+            />
+            <Action
+              title="Clear All Sessions"
+              icon={Icon.Trash}
+              style={Action.Style.Destructive}
+              onAction={async () => {
+                const ok = await confirmAlert({
+                  title: "Clear all sessions?",
+                  message: "Every recorded session will be permanently deleted. This cannot be undone.",
+                  primaryAction: { title: "Delete All", style: Alert.ActionStyle.Destructive },
+                });
+                if (ok) {
+                  await clearAllSessions();
+                  clearEvents();
+                  await onChange();
+                  await showToast({ style: Toast.Style.Success, title: "All sessions cleared" });
+                }
+              }}
+            />
+          </ActionPanel.Section>
+        </ActionPanel>
+      }
+    />
+  );
+}
+
+function RenameAction({ session, onChange }: { session: Session; onChange: () => Promise<void> }) {
+  return (
+    <Action.Push
+      title="Rename Session"
+      icon={Icon.Pencil}
+      target={<RenameForm session={session} onChange={onChange} />}
+    />
+  );
+}
+
+function RenameForm({ session, onChange }: { session: Session; onChange: () => Promise<void> }) {
+  const { pop } = useNavigation();
+  return (
+    <Form
+      actions={
+        <ActionPanel>
+          <Action.SubmitForm
+            title="Save"
+            icon={Icon.Check}
+            onSubmit={async (values: { name: string }) => {
+              await renameSession(session.id, values.name);
+              await onChange();
+              await showToast({ style: Toast.Style.Success, title: "Renamed" });
+              pop();
+            }}
+          />
+        </ActionPanel>
+      }
+    >
+      <Form.TextField id="name" title="Session Name" defaultValue={session.name} />
+    </Form>
+  );
+}
+
+function buildDetailMarkdown(session: Session): string {
+  const total = sessionTotalSeconds(session);
+  const spaces = sortedSpaces(session);
+  const lines: string[] = [];
+  lines.push(`# ${session.name}`);
+  lines.push("");
+  lines.push(`**Total:** ${formatHMS(total)}`);
+  lines.push("");
+  if (spaces.length === 0) {
+    lines.push("_No space time recorded yet._");
+    return lines.join("\n");
+  }
+  lines.push("| Space | Time | Share |");
+  lines.push("| --- | --- | --- |");
+  const maxBar = 20;
+  for (const rec of spaces) {
+    const pct = total > 0 ? rec.seconds / total : 0;
+    const bar = "█".repeat(Math.max(1, Math.round(pct * maxBar)));
+    lines.push(`| ${spaceName(rec)} | ${formatHMS(rec.seconds)} | ${bar} ${(pct * 100).toFixed(0)}% |`);
+  }
+  return lines.join("\n");
+}

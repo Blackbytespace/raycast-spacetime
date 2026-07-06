@@ -1,0 +1,43 @@
+export interface Preferences {
+  inactivityEnabled: boolean;
+  inactivityMinutes: string;
+  dailyPrompt: boolean;
+  autoDailySession: boolean;
+}
+
+/** Time accumulated in a single space during a session. */
+export interface SpaceRecord {
+  /** Stable identifier used as the map key (derived from the space id). */
+  key: string;
+  /** Stable macOS space id, when known. */
+  id?: number;
+  /** Space label (currently always empty for native detection). */
+  label: string;
+  /** Last known global space index (1-based across displays). */
+  index: number;
+  /** Last known display the space belongs to. */
+  display: number;
+  /** Accumulated seconds. */
+  seconds: number;
+}
+
+export interface Session {
+  id: string;
+  name: string;
+  startedAt: number;
+  stoppedAt?: number;
+  /** Exactly one stored session may be active at a time. */
+  isActive: boolean;
+  /** Manually paused by the user. */
+  paused: boolean;
+  /** Automatically paused due to inactivity. */
+  autoPaused: boolean;
+  /** Timestamp (ms) of the last tracking tick; undefined resets the delta clock. */
+  lastTick?: number;
+  /** Space key the user was in at the last tick. */
+  lastSpaceKey?: string;
+  /** Per-space accumulated time, keyed by SpaceRecord.key. */
+  spaces: Record<string, SpaceRecord>;
+}
+
+export type TrackerStatus = "idle" | "tracking" | "paused" | "auto-paused" | "error";
