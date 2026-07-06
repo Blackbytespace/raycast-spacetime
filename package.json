@@ -1,6 +1,6 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "@blackbyte/raycast-spacetime",
+  "name": "blackbyte-raycast-spacetime",
   "title": "Spacetime",
   "description": "Track how much time you spend in each macOS space, with inactivity detection and CSV export.",
   "icon": "icon.png",
