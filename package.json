@@ -1,13 +1,15 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "blackbyte-raycast-spacetime",
+  "version": "1.0.0",
   "title": "Spacetime",
   "description": "Track how much time you spend in each macOS space, with inactivity detection and CSV export.",
   "icon": "icon.png",
-  "author": "olivier_bossel",
+  "author": "Blackbyte <hello@blackbyte.space>",
   "categories": [
     "Productivity",
-    "Developer Tools"
+    "Developer Tools",
+    "Utilities & System"
   ],
   "license": "MIT",
   "commands": [
@@ -62,24 +64,10 @@
       "mode": "no-view"
     },
     {
-      "name": "pause-session",
-      "title": "Pause Spacetime Session",
-      "subtitle": "Spacetime",
-      "description": "Pause the active time-tracking session.",
-      "mode": "no-view"
-    },
-    {
-      "name": "resume-session",
-      "title": "Resume Spacetime Session",
-      "subtitle": "Spacetime",
-      "description": "Resume the paused time-tracking session.",
-      "mode": "no-view"
-    },
-    {
       "name": "export-last-session",
       "title": "Export Last Session",
       "subtitle": "Spacetime",
-      "description": "Export the most recent session to a CSV file in Downloads.",
+      "description": "Export the most recent session to a CSV file, choosing where to save it.",
       "mode": "no-view"
     }
   ],
@@ -99,7 +87,16 @@
       "description": "How many minutes of inactivity before tracking auto-pauses.",
       "type": "textfield",
       "required": false,
-      "default": "2"
+      "default": "10"
+    },
+    {
+      "name": "keepTrackingWhileMedia",
+      "title": "Media Playback",
+      "label": "Keep tracking while media is playing",
+      "description": "Don't auto-pause when an app is playing video/audio or otherwise keeping the display awake (e.g. watching a video or presenting).",
+      "type": "checkbox",
+      "required": false,
+      "default": true
     },
     {
       "name": "autoDailySession",

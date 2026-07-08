@@ -1,6 +1,7 @@
 export interface Preferences {
   inactivityEnabled: boolean;
   inactivityMinutes: string;
+  keepTrackingWhileMedia: boolean;
   autoDailySession: boolean;
   autoSaveSessions: boolean;
   autoSaveDirectory?: string;

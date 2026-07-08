@@ -1,119 +1,106 @@
 # Spacetime
 
-A [Raycast](https://raycast.com) extension that tracks how much time you spend in each macOS space (Mission Control
-desktop), with automatic inactivity detection and CSV export. **No window manager required.**
+Track how much time you spend in each of your macOS Spaces (Mission Control desktops).
+Spacetime lives in your menu bar, records time per desktop while you work, and lets you name
+your spaces, jump between them, and export your day to a spreadsheet.
 
-## Features
+## Key features
 
-1. **Start a tracking session** — from the menu bar or the *Tracking Sessions* command.
-2. **Automatic space detection** — detects the active space natively (see below); no external tools.
-3. **Per-space time recording** — wall-clock time between ticks is attributed to the space you were in.
-4. **CSV export** — export any session (per-space breakdown + percentages) to `~/Downloads`, or copy it to the clipboard.
-5. **Stop a session** — from the menu bar or the sessions list; the final interval is flushed before stopping.
-6. **Inactivity detection** — after a configurable idle threshold (default **2 minutes**, read from macOS `HIDIdleTime`),
-   tracking auto-pauses and resumes as soon as you're active again. This is a **configurable option** (on/off + threshold).
+- ⏱️ **Automatic time tracking** per macOS Space
+- 🏷️ **Name your spaces** — real names instead of "Desktop 1, 2, 3…"
+- ⌨️ **Quick switching** between spaces using names
+- 📊 **Session reports** with a per-space breakdown and percentages
+- 📤 **CSV export** — on demand or saved automatically when a session stops
+- 🗓️ **Automatic daily session** that starts a fresh session once a day
+- 😴 **Idle auto-pause** so time away from the keyboard isn't counted
+- 🔒 **Private** — all data stays on your Mac
 
-## How space detection works
+## Getting started
 
-macOS has no public API for Spaces, but the private **SkyLight** framework exposes the active space id via
-`SLSGetActiveSpace`. On first use the extension:
+1. Install the extension.
+2. Open Raycast and run **Setup**. It shows a short checklist and a **Run Full Setup** action
+   (press ⌘↵) that turns everything on for you.
+3. The first time you switch to a space, macOS asks for **Accessibility** permission — click
+   **Open System Settings** and enable Raycast. This is the only manual step, and you only do it
+   once.
 
-1. writes a tiny C helper to its support directory and compiles it with `clang`
-   (`-framework SkyLight`), caching the binary;
-2. runs the helper each tick to get the active space **id**;
-3. maps that id to a 1-based **index** and **display** using the reliably-ordered space list from
-   `com.apple.spaces` (the ordering is stable; only the cached "current space" pointer is unreliable, which is why we
-   read the *live* id from SkyLight instead).
+That's it. The Spacetime clock icon appears in your menu bar and starts tracking.
 
-Reading the active space is a harmless read-only call — **no SIP changes and no scripting addition** are needed.
-Because spaces are keyed by their stable id, reordering spaces mid-session doesn't
-split their totals. Spaces are named `Space <index>` (macOS spaces have no user labels).
+> Tip: if the menu bar icon doesn't show up yet, run the **Menubar** command once from Raycast.
 
-The tracker runs as a **menu bar command** with a background refresh `interval` of `1s`. Time is measured from the
-actual wall-clock delta between ticks, so totals stay accurate regardless of the interval — the interval only bounds how
-precisely a space *switch* is attributed. Gaps larger than one hour (e.g. sleep with inactivity detection off) are
-ignored to avoid bogus jumps. All data is stored locally via Raycast `LocalStorage`; only one session is active at a time.
+## The menu bar
 
-## Commands
+Click the Spacetime icon in your menu bar to:
 
-| Command | Mode | Description |
-| --- | --- | --- |
-| **Space Tracker** | Menu bar | The tracking engine + start / pause / resume / stop controls and a per-space breakdown. |
-| **Tracking Sessions** | View | Browse recorded sessions, see per-space charts, rename, delete, and export to CSV. |
-| **Spaces List** | View | List all spaces: the default action switches to a space; each also has a Rename Space action. |
-| **Name Current Space** | View | Name the space you're currently on (also launchable from the menu bar). |
-| **Setup Spaces** | View | One place to apply everything switching needs: enables the Mission Control shortcuts, turns off auto-rearrange, assigns key codes, and checks Accessibility. |
+- See your **current session**, total time, and the space you're on now.
+- See a **per-space breakdown** of where your time went.
+- **Start** a new session, or **stop** the current one.
+- **Switch** to any space in the "Switch to Space" list.
+- Quickly open **Rename Space**, **Sessions**, **Setup**, and **Settings**.
+
+## Sessions
+
+A *session* is one stretch of tracked time (for example, a work day).
+
+- **New Session** — starts tracking. If a session is already running, stop it first.
+- **Stop Session** — ends the current session.
+- **Sessions** — browse everything you've recorded. Each session shows its total time and a
+  per-space table with a **Percentage** column. From here you can **rename**, **delete**, or
+  **export** a session.
+- **Export Last Session** — quickly saves your most recent session as a spreadsheet (CSV) to your
+  Downloads folder.
+
+Only time spent on your **main display** is tracked, and tracking pauses automatically while
+you're away from the keyboard (see Settings).
+
+## Naming your spaces
+
+macOS calls your desktops "Desktop 1, 2, 3…". Give them real names so your reports make sense:
+
+- **Rename Space** — names the space you're currently on.
+- **Spaces** — lists your spaces; select one to rename it (or switch to it).
+
+Your names appear everywhere time is shown — the menu bar, the breakdowns, and your exports.
 
 ## Switching spaces
 
-The **Space Tracker** menu bar dropdown has a **Switch to Space** section, and *Go to Space* is the default action in
-**Spaces List**. Switching works by synthesizing the **macOS keyboard shortcut** you've assigned to that desktop (the
-same approach the NameSpaces extension uses) — the private WindowServer switch calls are *not* honored from a Raycast
-subprocess, so this is the only reliable method.
+From the menu bar's **Switch to Space** list, or from the **Spaces** command, pick a space to jump
+to it. Spacetime also sets up **Ctrl + number** shortcuts (Ctrl 1, Ctrl 2, …) so you can switch
+straight from the keyboard.
 
-**This is set up automatically.** When the extension runs it:
+> For the numbers to stay in the right order, keep **"Automatically rearrange Spaces based on most
+> recent use"** turned **off** (System Settings › Desktop & Dock › Mission Control). Setup does
+> this for you.
 
-- assigns each space (index 1–9) its default key code — Control + the matching digit (`18`=1, `19`=2, `20`=3, `21`=4,
-  `23`=5, `22`=6, `26`=7, `28`=8, `25`=9), and
-- enables the macOS "Switch to Desktop N" shortcuts once (writes `com.apple.symbolichotkeys` and reloads them via
-  `activateSettings -u`).
+## Saving sessions automatically
 
-So the **only** manual step is granting **Accessibility** to Raycast — macOS asks the first time you switch (or add it
-under System Settings › Privacy & Security › Accessibility).
-
-Run the **Setup Spaces** command (also in the menu bar as *Setup Spaces…*) for a one-stop checklist: it shows the status
-of each requirement — Mission Control shortcuts, auto-rearrange off, key codes assigned, Accessibility granted — with a
-**Run Full Setup** (⌘↵) action that applies them all (turning off auto-rearrange restarts the Dock) and a button that
-opens the Accessibility settings pane. You can also override a space's key in *Edit Space*; spaces with a shortcut show
-a keyboard icon.
-
-> The `Ctrl+N` → space mapping is only stable if **"Automatically rearrange Spaces based on most recent use"** is **off**
-> (System Settings › Desktop & Dock › Mission Control). With it on, macOS renumbers desktops as you use them.
-
-## Naming spaces
-
-macOS has no concept of a named space (Mission Control desktops are just "Desktop 1, 2, 3…") and exposes no API to set
-one. The **Spaces List** command (via its Rename Space action) instead stores your own names, keyed by each space's *stable id* — so a name stays
-attached to the same space even if you reorder them. Named spaces show up by name in the menu bar, the per-space
-breakdown, and CSV exports; unnamed ones fall back to `Space <index>`. Names are stored locally in
-`space-names.json` in the extension's support directory.
-
-To name the space you're on right now without hunting through the list, use **Name Current Space** — it opens a form
-prefilled for the active space. It's also available straight from the menu bar (*Name Current Space…*).
-
-## Preferences
-
-| Preference | Default | Description |
-| --- | --- | --- |
-| `Inactivity Detection` | on | Pause tracking automatically when idle. |
-| `Idle Threshold (minutes)` | `2` | Minutes of inactivity before auto-pause. |
-| `Automatic Daily Session` | off | Start a new session automatically once a day, with no prompt or action. |
+Turn on **Save Sessions to Disk** (in Settings) to automatically export every session as a CSV
+when it stops. Choose the destination folder, and optionally organize files into year/month
+subfolders (e.g. `2026/07/session-2026-07-06-15h23.csv`).
 
 ## Automatic daily session
 
-Enable **Automatic Daily Session** to get one session per day with zero interaction. The first time the menu-bar command
-runs each calendar day (i.e. when you next use/wake the computer), it starts a new session automatically — replacing a
-stale session left running from a previous day, or keeping one you already started today. It's tracked once per day via
-LocalStorage, so it won't start more than one.
+Turn on **Automatic Daily Session** to have Spacetime start a fresh session for you once a day —
+the first time you use your computer. Yesterday's session is closed automatically, so each day
+stays separate with no action from you.
 
-## Requirements
+## Settings
 
-- macOS (uses the private SkyLight framework for space detection and `ioreg` for idle detection).
-- **Xcode Command Line Tools** (`xcode-select --install`) — needed once, so `clang` can compile the ~8-line helper.
+Open Raycast › Extensions › Spacetime to adjust:
 
-## Notes & caveats
+- **Inactivity Detection** — automatically pause tracking when you stop using the computer (on by
+  default).
+- **Idle Threshold** — how many minutes of inactivity before tracking pauses (default 10).
+- **Keep tracking while media is playing** — don't auto-pause while you're watching a video or
+  presenting (on by default).
+- **Automatic Daily Session** — start one session per day automatically (off by default).
+- **Save Sessions to Disk** — export each session to CSV when it stops (off by default).
+- **Sessions Folder** — where those CSV files are saved (defaults to Downloads).
+- **Organize by Year/Month** — sort saved files into year/month folders.
 
-- Space detection relies on a **private Apple API** (`SLSGetActiveSpace`). It's unofficial but has been stable for years.
-  A future macOS release could change it.
-- The extension process must run within your GUI login session (it does, as a Raycast command) to reach the
-  WindowServer. If the helper ever returns `0` (e.g. at the login window), that tick is skipped rather than miscounted.
+## Good to know
 
-## Development
-
-```bash
-npm install
-npm run dev        # develop against the local Raycast app
-npm run build      # ray build -e dist
-npm run lint       # ray lint
-npm run generate-icon  # regenerate assets/icon.png
-```
+- Your data stays **on your Mac** — nothing is uploaded anywhere.
+- Only one session runs at a time.
+- If macOS asks to install **Command Line Tools** on first run, accept it — Spacetime needs it
+  once to detect your spaces.

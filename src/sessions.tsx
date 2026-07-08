@@ -19,7 +19,6 @@ import {
   deleteSession,
   getSessions,
   renameSession,
-  setPaused,
   startSession,
   stopActiveSession,
 } from "./lib/storage";
@@ -162,39 +161,16 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
 
           <ActionPanel.Section>
             {session.isActive ? (
-              <>
-                {session.paused ? (
-                  <Action
-                    title="Resume Tracking"
-                    icon={Icon.Play}
-                    onAction={async () => {
-                      await setPaused(false);
-                      await onChange();
-                      await refreshMenuBar();
-                    }}
-                  />
-                ) : (
-                  <Action
-                    title="Pause Tracking"
-                    icon={Icon.Pause}
-                    onAction={async () => {
-                      await setPaused(true);
-                      await onChange();
-                      await refreshMenuBar();
-                    }}
-                  />
-                )}
-                <Action
-                  title="Stop Session"
-                  icon={Icon.Stop}
-                  onAction={async () => {
-                    await stopActiveSession();
-                    await onChange();
-                    await refreshMenuBar();
-                    await showToast({ style: Toast.Style.Success, title: "Session stopped" });
-                  }}
-                />
-              </>
+              <Action
+                title="Stop Session"
+                icon={Icon.Stop}
+                onAction={async () => {
+                  await stopActiveSession();
+                  await onChange();
+                  await refreshMenuBar();
+                  await showToast({ style: Toast.Style.Success, title: "Session stopped" });
+                }}
+              />
             ) : (
               <Action
                 title="Start New Session"
@@ -298,13 +274,11 @@ function buildDetailMarkdown(session: Session): string {
     lines.push("_No space time recorded yet._");
     return lines.join("\n");
   }
-  lines.push("| Space | Time | Share |");
+  lines.push("| Space | Time | Percentage |");
   lines.push("| --- | --- | --- |");
-  const maxBar = 20;
   for (const rec of spaces) {
     const pct = total > 0 ? rec.seconds / total : 0;
-    const bar = "█".repeat(Math.max(1, Math.round(pct * maxBar)));
-    lines.push(`| ${spaceName(rec)} | ${formatHMS(rec.seconds)} | ${bar} ${(pct * 100).toFixed(0)}% |`);
+    lines.push(`| ${spaceName(rec)} | ${formatHMS(rec.seconds)} | ${(pct * 100).toFixed(1)}% |`);
   }
   return lines.join("\n");
 }

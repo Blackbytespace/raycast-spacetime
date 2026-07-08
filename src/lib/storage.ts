@@ -130,19 +130,6 @@ export async function finalizeStaleDailySession(): Promise<void> {
   }
 }
 
-export async function setPaused(paused: boolean): Promise<void> {
-  const sessions = await getSessions();
-  for (const s of sessions) {
-    if (s.isActive) {
-      s.paused = paused;
-      // Reset the delta clock so paused time is never counted.
-      s.lastTick = undefined;
-      if (!paused) s.autoPaused = false;
-    }
-  }
-  await saveSessions(sessions);
-}
-
 export async function renameSession(id: string, name: string): Promise<void> {
   const sessions = await getSessions();
   const s = sessions.find((x) => x.id === id);

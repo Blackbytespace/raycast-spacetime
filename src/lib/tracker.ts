@@ -1,7 +1,7 @@
 import { getPreferenceValues } from "@raycast/api";
 import { finalizeStaleDailySession, getActiveSession, upsertSession } from "./storage";
 import { getCurrentSpace, mainDisplay } from "./native";
-import { getIdleSeconds } from "./idle";
+import { getIdleSeconds, isDisplayKeptAwake } from "./idle";
 import { spaceKey, SpaceInfo } from "./format";
 import { Preferences, Session, TrackerStatus } from "./types";
 
@@ -82,8 +82,11 @@ export async function tick(): Promise<TickResult> {
 
   // Inactivity handling.
   if (prefs.inactivityEnabled) {
-    const thresholdSeconds = Math.max(1, parseFloat(prefs.inactivityMinutes) || 2) * 60;
-    if (getIdleSeconds() >= thresholdSeconds) {
+    const thresholdSeconds = Math.max(1, parseFloat(prefs.inactivityMinutes) || 10) * 60;
+    // Don't auto-pause if media/presentation is keeping the display awake (e.g. watching a video):
+    // there's no keyboard/mouse input, but the user is clearly still present. The pmset check only
+    // runs once we've actually crossed the idle threshold, so it never adds per-tick overhead.
+    if (getIdleSeconds() >= thresholdSeconds && !(prefs.keepTrackingWhileMedia && isDisplayKeptAwake())) {
       session.autoPaused = true;
       session.lastTick = undefined; // break the chain so the idle stretch isn't counted
       session.lastSpaceKey = spaceKey(current);

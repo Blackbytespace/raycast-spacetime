@@ -12,6 +12,8 @@ type ExtensionPreferences = {
   "inactivityEnabled": boolean,
   /** Idle Threshold (minutes) - How many minutes of inactivity before tracking auto-pauses. */
   "inactivityMinutes": string,
+  /** Media Playback - Don't auto-pause when an app is playing video/audio or otherwise keeping the display awake (e.g. watching a video or presenting). */
+  "keepTrackingWhileMedia": boolean,
   /** Automatic Daily Session - Automatically start a new session once a day (when you first use your computer), with no action. */
   "autoDailySession": boolean,
   /** Save Sessions to Disk - When a session is stopped (or replaced by a new one), automatically write it as a CSV file to the folder below. */
@@ -40,10 +42,6 @@ declare namespace Preferences {
   export type StartSession = ExtensionPreferences & {}
   /** Preferences accessible in the `stop-session` command */
   export type StopSession = ExtensionPreferences & {}
-  /** Preferences accessible in the `pause-session` command */
-  export type PauseSession = ExtensionPreferences & {}
-  /** Preferences accessible in the `resume-session` command */
-  export type ResumeSession = ExtensionPreferences & {}
   /** Preferences accessible in the `export-last-session` command */
   export type ExportLastSession = ExtensionPreferences & {}
 }
@@ -63,10 +61,6 @@ declare namespace Arguments {
   export type StartSession = {}
   /** Arguments passed to the `stop-session` command */
   export type StopSession = {}
-  /** Arguments passed to the `pause-session` command */
-  export type PauseSession = {}
-  /** Arguments passed to the `resume-session` command */
-  export type ResumeSession = {}
   /** Arguments passed to the `export-last-session` command */
   export type ExportLastSession = {}
 }

@@ -9,14 +9,18 @@ import {
   showHUD,
 } from "@raycast/api";
 import { useEffect, useState } from "react";
+import { writeFileSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 import { tick, TickResult } from "./lib/tracker";
-import { getActiveSession, getSessions, setPaused, startSession, stopActiveSession } from "./lib/storage";
-import { exportSessionCsv } from "./lib/csv";
+import { getActiveSession, getSessions, startSession, stopActiveSession } from "./lib/storage";
+import { sessionCsvFilename, sessionToCsv } from "./lib/csv";
 import { formatDuration, sessionTotalSeconds, sortedSpaces, spaceInfoName, spaceName, SpaceInfo } from "./lib/format";
 import { listSpaces, mainDisplay } from "./lib/native";
 import { switchToSpace } from "./lib/spaceSwitch";
 import { ensureSwitchDefaults } from "./lib/desktopShortcuts";
 import { markMenuBarActive } from "./lib/menubar";
+import { promptSaveLocation } from "./lib/dialog";
 import { maybeAutoStartDailySession } from "./lib/notify";
 import { Preferences, Session } from "./lib/types";
 
@@ -102,27 +106,6 @@ export default function Command() {
             await refresh(); // re-render the menu bar with the new state right away
           }}
         />
-        {status !== "idle" && !session?.paused && (
-          <MenuBarExtra.Item
-            title="Pause Spacetime Session"
-            icon={Icon.Pause}
-            onAction={async () => {
-              await tick(); // flush time up to now before pausing
-              await setPaused(true);
-              await refresh();
-            }}
-          />
-        )}
-        {status !== "idle" && session?.paused && (
-          <MenuBarExtra.Item
-            title="Resume Spacetime Session"
-            icon={Icon.Play}
-            onAction={async () => {
-              await setPaused(false);
-              await refresh();
-            }}
-          />
-        )}
         {status !== "idle" && (
           <MenuBarExtra.Item
             title="Stop Session"
@@ -145,8 +128,13 @@ export default function Command() {
               return;
             }
             const last = [...all].sort((a, b) => b.startedAt - a.startedAt)[0];
+            const path = await promptSaveLocation(sessionCsvFilename(last), join(homedir(), "Downloads"));
+            if (!path) {
+              await showHUD("Export cancelled");
+              return;
+            }
             try {
-              const path = exportSessionCsv(last);
+              writeFileSync(path, sessionToCsv(last), "utf8");
               await showHUD(`Exported "${last.name}" to ${path}`);
             } catch (err) {
               await showHUD(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -177,14 +165,14 @@ export default function Command() {
 
       <MenuBarExtra.Section>
         <MenuBarExtra.Item
-          title="Rename Current Space…"
+          title="Rename Space…"
           icon={Icon.Pencil}
           onAction={async () => {
             await launchCommand({ name: "name-current", type: LaunchType.UserInitiated });
           }}
         />
         <MenuBarExtra.Item
-          title="Setup Spacetime…"
+          title="Setup…"
           icon={Icon.Wand}
           onAction={async () => {
             await launchCommand({ name: "setup", type: LaunchType.UserInitiated });
