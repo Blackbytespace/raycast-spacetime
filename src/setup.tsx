@@ -1,3 +1,4 @@
+/* eslint-disable @raycast/prefer-title-case -- action title references the Dock */
 import {
   Action,
   ActionPanel,

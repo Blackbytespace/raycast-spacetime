@@ -1,6 +1,3 @@
-import { homedir } from "os";
-import { join } from "path";
-import { writeFileSync } from "fs";
 import { Session } from "./types";
 import { formatHMS, sessionTotalSeconds, sortedSpaces, spaceName } from "./format";
 
@@ -32,18 +29,10 @@ export function sessionToCsv(session: Session): string {
   return rows.join("\n") + "\n";
 }
 
-/** CSV filename for a session, based on when it started, e.g. "session-2026-07-06-13h49.csv". */
+/** CSV filename for a session, based on when it started, e.g. "2026-07-06-13h49.csv". */
 export function sessionCsvFilename(session: Session): string {
   const d = new Date(session.startedAt);
   const pad = (n: number) => String(n).padStart(2, "0");
   const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}h${pad(d.getMinutes())}`;
-  return `session-${stamp}.csv`;
-}
-
-/** Write the CSV to ~/Downloads and return the file path. */
-export function exportSessionCsv(session: Session): string {
-  const csv = sessionToCsv(session);
-  const path = join(homedir(), "Downloads", sessionCsvFilename(session));
-  writeFileSync(path, csv, "utf8");
-  return path;
+  return `${stamp}.csv`;
 }

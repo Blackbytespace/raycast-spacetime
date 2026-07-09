@@ -1,6 +1,7 @@
 import {
   Color,
   Icon,
+  Image,
   MenuBarExtra,
   getPreferenceValues,
   launchCommand,
@@ -196,19 +197,22 @@ export default function Command() {
   );
 }
 
-function menuBarSummary(state?: State): { icon: Icon | { source: Icon; tintColor: Color }; title?: string } {
+// Brand glyph shown in the menu bar (tinted per status; PrimaryText adapts to light/dark).
+const MENU_BAR_ICON = "menubar-icon.png";
+
+function menuBarSummary(state?: State): { icon: Image.ImageLike; title?: string } {
   const status = state?.result.status ?? "idle";
   switch (status) {
     case "tracking":
-      return { icon: { source: Icon.Clock, tintColor: Color.Green } };
+      return { icon: { source: MENU_BAR_ICON, tintColor: Color.Green } };
     case "paused":
-      return { icon: { source: Icon.Pause, tintColor: Color.Yellow }, title: "Paused" };
+      return { icon: { source: MENU_BAR_ICON, tintColor: Color.Yellow }, title: "Paused" };
     case "auto-paused":
-      return { icon: { source: Icon.Moon, tintColor: Color.Yellow }, title: "Idle" };
+      return { icon: { source: MENU_BAR_ICON, tintColor: Color.Yellow }, title: "Idle" };
     case "error":
-      return { icon: { source: Icon.Warning, tintColor: Color.Red } };
+      return { icon: { source: MENU_BAR_ICON, tintColor: Color.Red } };
     default:
-      return { icon: Icon.Clock };
+      return { icon: { source: MENU_BAR_ICON, tintColor: Color.PrimaryText } };
   }
 }
 

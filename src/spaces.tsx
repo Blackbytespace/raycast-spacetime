@@ -1,3 +1,4 @@
+/* eslint-disable @raycast/prefer-title-case -- action titles use keys (Ctrl+Number) */
 import { Action, ActionPanel, Color, Form, Icon, List, Toast, showToast, useNavigation } from "@raycast/api";
 import { useEffect, useRef, useState } from "react";
 import { getActiveSpaceId, listSpaces, mainDisplay } from "./lib/native";

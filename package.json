@@ -1,25 +1,24 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "blackbyte-raycast-spacetime",
-  "version": "1.0.0",
+  "name": "spacetime",
   "title": "Spacetime",
   "description": "Track how much time you spend in each macOS space, with inactivity detection and CSV export.",
   "icon": "icon.png",
-  "author": "Blackbyte <hello@blackbyte.space>",
+  "author": "olivier_bossel",
   "categories": [
     "Productivity",
     "Developer Tools",
-    "Utilities & System"
+    "System"
   ],
   "license": "MIT",
   "commands": [
     {
       "name": "tracker",
-      "title": "Menubar",
+      "title": "Menu Bar",
       "subtitle": "Spacetime",
       "description": "Menu bar tracker: start/stop a session and record time per macOS space.",
       "mode": "menu-bar",
-      "interval": "1s"
+      "interval": "10s"
     },
     {
       "name": "sessions",
@@ -134,7 +133,6 @@
     }
   ],
   "dependencies": {
-    "@esbuild/darwin-arm64": "^0.27.7",
     "@raycast/api": "^1.80.0",
     "@raycast/utils": "^1.17.0"
   },

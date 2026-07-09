@@ -102,5 +102,3 @@ Open Raycast › Extensions › Spacetime to adjust:
 
 - Your data stays **on your Mac** — nothing is uploaded anywhere.
 - Only one session runs at a time.
-- If macOS asks to install **Command Line Tools** on first run, accept it — Spacetime needs it
-  once to detect your spaces.

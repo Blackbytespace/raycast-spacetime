@@ -1,3 +1,4 @@
+/* eslint-disable @raycast/prefer-title-case -- action titles use acronyms/keys (CSV, Ctrl) */
 import {
   Action,
   ActionPanel,
@@ -14,6 +15,9 @@ import {
   Clipboard,
 } from "@raycast/api";
 import { useEffect, useState } from "react";
+import { writeFileSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 import {
   clearAllSessions,
   deleteSession,
@@ -24,7 +28,8 @@ import {
 } from "./lib/storage";
 import { tick } from "./lib/tracker";
 import { refreshMenuBar } from "./lib/menubar";
-import { exportSessionCsv, sessionToCsv } from "./lib/csv";
+import { sessionCsvFilename, sessionToCsv } from "./lib/csv";
+import { promptSaveLocation } from "./lib/dialog";
 import { formatDuration, formatHMS, sessionTotalSeconds, sortedSpaces, spaceName } from "./lib/format";
 import { Session } from "./lib/types";
 
@@ -110,7 +115,6 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
                 text={session.stoppedAt ? new Date(session.stoppedAt).toLocaleString() : "In progress"}
               />
               <List.Item.Detail.Metadata.Label title="Total" text={formatHMS(total)} />
-              <List.Item.Detail.Metadata.Label title="Spaces tracked" text={String(spaces.length)} />
               <List.Item.Detail.Metadata.Separator />
               {spaces.map((rec) => (
                 <List.Item.Detail.Metadata.Label
@@ -126,16 +130,20 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
       actions={
         <ActionPanel>
           <ActionPanel.Section>
-            {/* eslint-disable-next-line @raycast/prefer-title-case */}
             <Action
               title="Export to CSV"
               icon={Icon.Download}
               onAction={async () => {
+                const path = await promptSaveLocation(sessionCsvFilename(session), join(homedir(), "Downloads"));
+                if (!path) {
+                  await showToast({ style: Toast.Style.Failure, title: "Export cancelled" });
+                  return;
+                }
                 try {
-                  const path = exportSessionCsv(session);
+                  writeFileSync(path, sessionToCsv(session), "utf8");
                   await showToast({
                     style: Toast.Style.Success,
-                    title: "Exported to Downloads",
+                    title: "Session exported",
                     message: path,
                     primaryAction: { title: "Show in Finder", onAction: () => showInFinder(path) },
                   });
@@ -148,7 +156,6 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
                 }
               }}
             />
-            {/* eslint-disable-next-line @raycast/prefer-title-case */}
             <Action
               title="Copy CSV to Clipboard"
               icon={Icon.Clipboard}

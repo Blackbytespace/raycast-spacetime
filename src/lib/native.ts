@@ -1,89 +1,39 @@
-import { environment } from "@raycast/api";
 import { execFileSync, execSync } from "child_process";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { join } from "path";
 import { SpaceInfo } from "./format";
 
 /**
  * Native macOS space detection.
  *
  * macOS has no public API for Spaces, but the private SkyLight framework exposes
- * the active space id via `SLSGetActiveSpace`. We ship a tiny C helper, compile
- * it on first use with clang, and call it each tick. The active-space id is then
- * mapped to a 1-based index + display by reading the (reliably ordered) space
- * list from `com.apple.spaces`.
+ * the active space id via `SLSGetActiveSpace`. We call it through JXA
+ * (`osascript -l JavaScript`), which can bind arbitrary C functions from a loaded
+ * framework via `ObjC.bindFunction` — so there's nothing to compile and no Xcode
+ * tooling required. The active-space id is then mapped to a 1-based index +
+ * display by reading the (reliably ordered) space list from `com.apple.spaces`.
  *
  * Reading the active space is a harmless read-only call — no SIP changes and no
  * scripting addition are required.
  */
 
-// Bump to force a recompile after changing the source below.
-const HELPER_VERSION = 4;
-
-// Reads and prints the active space id. (Switching spaces is done via macOS
-// keyboard shortcuts in spaceSwitch.ts, not here — the private WindowServer
-// mutation calls are not honored from a Raycast subprocess.)
-const HELPER_SRC = `#include <stdio.h>
-#include <stdint.h>
-typedef int CGSConnectionID;
-extern CGSConnectionID SLSMainConnectionID(void);
-extern uint64_t SLSGetActiveSpace(CGSConnectionID cid);
-int main(void) {
-    printf("%llu\\n", (unsigned long long)SLSGetActiveSpace(SLSMainConnectionID()));
-    return 0;
-}
+// JXA that loads SkyLight, binds the two C functions we need, and prints the
+// active space id. Run via `osascript -l JavaScript`.
+const ACTIVE_SPACE_JXA = `
+ObjC.import("Foundation");
+$.NSBundle.bundleWithPath("/System/Library/PrivateFrameworks/SkyLight.framework").load;
+ObjC.bindFunction("SLSMainConnectionID", ["int", []]);
+ObjC.bindFunction("SLSGetActiveSpace", ["unsigned long long", ["int"]]);
+$.SLSGetActiveSpace($.SLSMainConnectionID()).toString();
 `;
-
-function helperBin(): string {
-  // Version is baked into the filename so a stale build can never be run.
-  return join(environment.supportPath, `space-helper-v${HELPER_VERSION}`);
-}
-
-function helperSrcPath(): string {
-  return join(environment.supportPath, "space-helper.c");
-}
-
-/** Compiles the SkyLight helper on first use (cached thereafter). Returns its path. */
-export function ensureHelper(): string {
-  const bin = helperBin();
-  if (existsSync(bin)) return bin;
-
-  mkdirSync(environment.supportPath, { recursive: true });
-  writeFileSync(helperSrcPath(), HELPER_SRC, "utf8");
-
-  const clang = "/usr/bin/clang";
-  if (!existsSync(clang)) {
-    throw new Error("clang not found. Install the Xcode Command Line Tools with: xcode-select --install");
-  }
-  try {
-    execFileSync(
-      clang,
-      [
-        helperSrcPath(),
-        "-o",
-        bin,
-        "-F/System/Library/PrivateFrameworks",
-        "-framework",
-        "SkyLight",
-        "-framework",
-        "CoreFoundation",
-      ],
-      { timeout: 20000 },
-    );
-  } catch (err) {
-    const e = err as { stderr?: Buffer | string; message?: string };
-    throw new Error(`Failed to compile space helper: ${e.stderr ? String(e.stderr).trim() : e.message}`);
-  }
-  return bin;
-}
 
 /** The id of the currently active macOS space. */
 export function getActiveSpaceId(): number {
-  const bin = ensureHelper();
-  const out = execFileSync(bin, [], { timeout: 4000, encoding: "utf8" }).trim();
+  const out = execFileSync("/usr/bin/osascript", ["-l", "JavaScript", "-e", ACTIVE_SPACE_JXA], {
+    timeout: 5000,
+    encoding: "utf8",
+  }).trim();
   const id = Number(out);
   if (!Number.isFinite(id) || id <= 0) {
-    throw new Error(`Could not read the active space (helper returned "${out}").`);
+    throw new Error(`Could not read the active space (osascript returned "${out}").`);
   }
   return id;
 }
@@ -181,9 +131,4 @@ export function listSpaces(fresh = false): SpaceInfo[] {
   }
   out.sort((a, b) => a.index - b.index);
   return out;
-}
-
-/** Absolute path to the compiled space helper (compiling it if needed). */
-export function helperPath(): string {
-  return ensureHelper();
 }

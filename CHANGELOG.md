@@ -1,6 +1,6 @@
 # Spacetime Changelog
 
-## 1.0.0 - 2026-06-07
+## [Initial Version] - {PR_MERGE_DATE}
 
 - Track time spent in each macOS Space from the menu bar
 - Start, stop, and browse tracking sessions with a per-space breakdown and percentages
