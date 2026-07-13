@@ -64,7 +64,7 @@ From the menu bar's **Switch to Space** list, or from the **Spaces** command, pi
 
 ## Saving sessions automatically
 
-Turn on **Save Sessions to Disk** (in Settings) to automatically export every session as a CSV when it stops. Choose the destination folder, and optionally organize files into year/month subfolders (e.g. `2026/07/session-2026-07-06-15h23.csv`).
+Turn on **Save Sessions to Disk** (in Settings) to automatically export every session as a CSV when it stops. Choose the destination folder, and optionally organize files into year/month subfolders (e.g. `2026/07/2026-07-06-15h23.csv`).
 
 ## Automatic daily session
 
