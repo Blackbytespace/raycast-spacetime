@@ -3,7 +3,7 @@ import { finalizeStaleDailySession, getActiveSession, upsertSession } from "./st
 import { getCurrentSpace, mainDisplay } from "./native";
 import { getIdleSeconds, isDisplayKeptAwake } from "./idle";
 import { spaceKey, SpaceInfo } from "./format";
-import { Preferences, Session, TrackerStatus } from "./types";
+import { Session, TrackerStatus } from "./types";
 
 /**
  * Guard against counting huge gaps (e.g. the machine slept while inactivity
