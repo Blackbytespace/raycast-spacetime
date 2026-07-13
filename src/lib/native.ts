@@ -74,7 +74,10 @@ export function mainDisplay(): number {
 function buildSpaceMap(): Map<number, SpaceMeta> {
   // Absolute paths + explicit env: Raycast spawns extension processes with a stripped PATH, so
   // bare command names would fail with ENOENT (same reason as desktopShortcuts.ts).
-  const env = { ...process.env, PATH: `${process.env.PATH ? process.env.PATH + ":" : ""}/usr/bin:/bin:/usr/sbin:/sbin` };
+  const env = {
+    ...process.env,
+    PATH: `${process.env.PATH ? process.env.PATH + ":" : ""}/usr/bin:/bin:/usr/sbin:/sbin`,
+  };
   const xml = execFileSync("/usr/bin/defaults", ["export", "com.apple.spaces", "-"], {
     timeout: 5000,
     encoding: "utf8",
