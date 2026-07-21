@@ -31,7 +31,7 @@ import { tick } from "./lib/tracker";
 import { refreshMenuBar } from "./lib/menubar";
 import { sessionCsvFilename, sessionToCsv } from "./lib/csv";
 import { promptSaveLocation } from "./lib/dialog";
-import { formatDuration, formatHMS, sessionTotalSeconds, sortedSpaces, spaceName } from "./lib/format";
+import { formatDateTime, formatHMS, sessionTotalSeconds, sortedSpaces, spaceName } from "./lib/format";
 import { Session } from "./lib/types";
 
 export default function Command() {
@@ -108,25 +108,22 @@ function SessionItem({
       },
     });
   }
-  accessories.push({ text: formatDuration(total) });
-
-  const markdown = buildDetailMarkdown(session);
+  accessories.push({ text: formatHMS(total) });
 
   return (
     <List.Item
       icon={session.isActive ? { source: Icon.CircleFilled, tintColor: Color.Green } : Icon.Clock}
       title={session.name}
-      subtitle={new Date(session.startedAt).toLocaleString()}
+      subtitle={formatDateTime(session.startedAt)}
       accessories={accessories}
       detail={
         <List.Item.Detail
-          markdown={markdown}
           metadata={
             <List.Item.Detail.Metadata>
-              <List.Item.Detail.Metadata.Label title="Started" text={new Date(session.startedAt).toLocaleString()} />
+              <List.Item.Detail.Metadata.Label title="Started" text={formatDateTime(session.startedAt)} />
               <List.Item.Detail.Metadata.Label
                 title="Stopped"
-                text={session.stoppedAt ? new Date(session.stoppedAt).toLocaleString() : "In progress"}
+                text={session.stoppedAt ? formatDateTime(session.stoppedAt) : "In progress"}
               />
               <List.Item.Detail.Metadata.Label title="Total" text={formatHMS(total)} />
               <List.Item.Detail.Metadata.Separator />
@@ -301,25 +298,4 @@ function RenameForm({ session, onChange }: { session: Session; onChange: () => P
       <Form.TextField id="name" title="Session Name" defaultValue={session.name} />
     </Form>
   );
-}
-
-function buildDetailMarkdown(session: Session): string {
-  const total = sessionTotalSeconds(session);
-  const spaces = sortedSpaces(session);
-  const lines: string[] = [];
-  lines.push(`# ${session.name}`);
-  lines.push("");
-  lines.push(`**Total:** ${formatHMS(total)}`);
-  lines.push("");
-  if (spaces.length === 0) {
-    lines.push("_No space time recorded yet._");
-    return lines.join("\n");
-  }
-  lines.push("| Space | Time | Percentage |");
-  lines.push("| --- | --- | --- |");
-  for (const rec of spaces) {
-    const pct = total > 0 ? rec.seconds / total : 0;
-    lines.push(`| ${spaceName(rec)} | ${formatHMS(rec.seconds)} | ${(pct * 100).toFixed(1)}% |`);
-  }
-  return lines.join("\n");
 }

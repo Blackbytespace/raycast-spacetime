@@ -44,6 +44,13 @@ export function formatDuration(totalSeconds: number): string {
   return `${m}:${pad(sec)}`;
 }
 
+/** Locale date with a zero-padded 24-hour clock, e.g. "7/21/2026 05:12:33". */
+export function formatDateTime(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.toLocaleDateString()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 /** Fixed-width HH:MM:SS used in CSV exports. */
 export function formatHMS(totalSeconds: number): string {
   const s = Math.max(0, Math.round(totalSeconds));
