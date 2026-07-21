@@ -1,16 +1,10 @@
 import { getPreferenceValues } from "@raycast/api";
-import { finalizeStaleDailySession, getActiveSession, upsertSession } from "./storage";
+import { rolloverStaleSession, getActiveSession, upsertSession } from "./storage";
 import { getCurrentSpace, mainDisplay } from "./native";
 import { getIdleSeconds, isDisplayKeptAwake } from "./idle";
 import { spaceKey, SpaceInfo } from "./format";
 import { Session, TrackerStatus } from "./types";
-
-/**
- * Guard against counting huge gaps (e.g. the machine slept while inactivity
- * detection was disabled, or the menu bar command was disabled for a while).
- * Any single interval larger than this is ignored.
- */
-const MAX_TICK_DELTA_SECONDS = 60 * 60; // 1 hour
+import { MAX_TICK_DELTA_SECONDS } from "./consts";
 
 export interface TickResult {
   status: TrackerStatus;
@@ -45,9 +39,9 @@ function ensureRecord(session: Session, key: string, info: SpaceInfo): void {
  */
 export async function tick(): Promise<TickResult> {
   const prefs = getPreferenceValues<Preferences>();
-  // Close out a session left over from a previous day before attributing any time, so the new
-  // day's time can never leak into it (only active when Automatic Daily Session is on).
-  await finalizeStaleDailySession();
+  // Close out any session that has crossed midnight before attributing time, so a session can
+  // never span two calendar days and the new day's time can't leak into the old one. Always runs.
+  await rolloverStaleSession();
   const session = await getActiveSession();
 
   if (!session) {
@@ -104,9 +98,12 @@ export async function tick(): Promise<TickResult> {
   ensureRecord(session, liveKey, current);
 
   // Attribute the interval since the last tick to the space we were in then.
-  const from = session.lastTick ?? null;
+  const rawFrom = session.lastTick ?? null;
   const key = session.lastSpaceKey ?? liveKey;
-  if (from != null) {
+  if (rawFrom != null) {
+    // Never credit time before the session began — matters for a replacement session whose
+    // startedAt is floored to 00:01 while its baseline tick fired at 00:00 (the midnight gap).
+    const from = Math.max(rawFrom, session.startedAt);
     const delta = (now - from) / 1000;
     if (delta > 0 && delta <= MAX_TICK_DELTA_SECONDS) {
       const rec = session.spaces[key];

@@ -23,6 +23,7 @@ import {
   deleteSession,
   getSessions,
   renameSession,
+  resumeSession,
   startSession,
   stopActiveSession,
 } from "./lib/storage";
@@ -75,13 +76,26 @@ export default function Command() {
         }
       />
       {sessions.map((session) => (
-        <SessionItem key={session.id} session={session} onChange={reload} />
+        <SessionItem
+          key={session.id}
+          session={session}
+          anyActive={sessions.some((s) => s.isActive)}
+          onChange={reload}
+        />
       ))}
     </List>
   );
 }
 
-function SessionItem({ session, onChange }: { session: Session; onChange: () => Promise<void> }) {
+function SessionItem({
+  session,
+  anyActive,
+  onChange,
+}: {
+  session: Session;
+  anyActive: boolean;
+  onChange: () => Promise<void>;
+}) {
   const total = sessionTotalSeconds(session);
   const spaces = sortedSpaces(session);
 
@@ -187,6 +201,26 @@ function SessionItem({ session, onChange }: { session: Session; onChange: () => 
                   await onChange();
                   await refreshMenuBar();
                   await showToast({ style: Toast.Style.Success, title: "Session started" });
+                }}
+              />
+            )}
+            {!session.isActive && !anyActive && (
+              <Action
+                title="Resume Session"
+                icon={Icon.ArrowClockwise}
+                onAction={async () => {
+                  const resumed = await resumeSession(session.id);
+                  await onChange();
+                  await refreshMenuBar();
+                  if (resumed) {
+                    await showToast({ style: Toast.Style.Success, title: "Session resumed" });
+                  } else {
+                    await showToast({
+                      style: Toast.Style.Failure,
+                      title: "Could not resume",
+                      message: "Another session is already recording.",
+                    });
+                  }
                 }}
               />
             )}

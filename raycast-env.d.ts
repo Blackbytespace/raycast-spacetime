@@ -14,6 +14,8 @@ type ExtensionPreferences = {
   "inactivityMinutes": string,
   /** Media Playback - Don't auto-pause when an app is playing video/audio or otherwise keeping the display awake (e.g. watching a video or presenting). */
   "keepTrackingWhileMedia": boolean,
+  /** Keep Sessions Within One Day - When enabled, a session that crosses midnight is stopped at 00:00 and a new session starts at 00:01 (or at your next activity). When disabled, a session may span multiple days. */
+  "splitAtMidnight": boolean,
   /** Automatic Daily Session - Automatically start a new session once a day (when you first use your computer), with no action. */
   "autoDailySession": boolean,
   /** Save Sessions to Disk - When a session is stopped (or replaced by a new one), automatically write it as a CSV file to the folder below. */
