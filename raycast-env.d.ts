@@ -21,7 +21,9 @@ type ExtensionPreferences = {
   /** Sessions Folder - Folder where stopped sessions are saved as CSV. Defaults to Downloads if left empty. */
   "autoSaveDirectory"?: string,
   /** Organize by Year/Month - Nest saved CSV files under year/month folders, e.g. 2026/07/session-2026-07-06-15h23.csv. */
-  "autoSaveSubfolders": boolean
+  "autoSaveSubfolders": boolean,
+  /** Minimum Space Time (minutes) - Hide spaces with less than this many minutes from the session breakdown and exports. Leave empty to show all spaces. */
+  "minSpaceMinutes"?: string
 }
 
 /** Preferences accessible in all the extension's commands */

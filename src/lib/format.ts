@@ -1,3 +1,4 @@
+import { getPreferenceValues } from "@raycast/api";
 import { Session, SpaceRecord } from "./types";
 import { nameForId } from "./spaceNames";
 
@@ -53,10 +54,28 @@ export function formatHMS(totalSeconds: number): string {
   return `${pad(h)}:${pad(m)}:${pad(sec)}`;
 }
 
+/**
+ * Minimum seconds a space must have to count, from the `minSpaceMinutes`
+ * preference. Returns null when unset/invalid, meaning "count all spaces".
+ */
+function minSpaceSeconds(): number | null {
+  const raw = getPreferenceValues<Preferences>().minSpaceMinutes?.trim();
+  if (!raw) return null;
+  const minutes = Number(raw);
+  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+  return minutes * 60;
+}
+
+/** Spaces kept after applying the minimum-time threshold. */
+function countedSpaces(session: Session): SpaceRecord[] {
+  const threshold = minSpaceSeconds();
+  return Object.values(session.spaces).filter((r) => threshold == null || r.seconds >= threshold);
+}
+
 export function sessionTotalSeconds(session: Session): number {
-  return Object.values(session.spaces).reduce((acc, r) => acc + r.seconds, 0);
+  return countedSpaces(session).reduce((acc, r) => acc + r.seconds, 0);
 }
 
 export function sortedSpaces(session: Session): SpaceRecord[] {
-  return Object.values(session.spaces).sort((a, b) => b.seconds - a.seconds);
+  return countedSpaces(session).sort((a, b) => b.seconds - a.seconds);
 }
