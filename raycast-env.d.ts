@@ -24,7 +24,7 @@ type ExtensionPreferences = {
   "autoSaveDirectory"?: string,
   /** Organize by Year/Month - Nest saved CSV files under year/month folders, e.g. 2026/07/session-2026-07-06-15h23.csv. */
   "autoSaveSubfolders": boolean,
-  /** Minimum Space Time (minutes) - Hide spaces with less than this many minutes from the session breakdown and exports. Leave empty to show all spaces. */
+  /** Minimum Space Time (minutes) - Hide spaces with less than this many minutes from the session breakdown and exported rows. The session total always counts every space. Leave empty to show all spaces. */
   "minSpaceMinutes"?: string
 }
 

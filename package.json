@@ -143,7 +143,7 @@
     {
       "name": "minSpaceMinutes",
       "title": "Minimum Space Time (minutes)",
-      "description": "Hide spaces with less than this many minutes from the session breakdown and exports. Leave empty to show all spaces.",
+      "description": "Hide spaces with less than this many minutes from the session breakdown and exported rows. The session total always counts every space. Leave empty to show all spaces.",
       "type": "textfield",
       "required": false
     }

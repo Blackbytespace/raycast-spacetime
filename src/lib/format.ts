@@ -62,8 +62,8 @@ export function formatHMS(totalSeconds: number): string {
 }
 
 /**
- * Minimum seconds a space must have to count, from the `minSpaceMinutes`
- * preference. Returns null when unset/invalid, meaning "count all spaces".
+ * Minimum seconds a space must be shown for, from the `minSpaceMinutes`
+ * preference. Returns null when unset/invalid, meaning "show all spaces".
  */
 function minSpaceSeconds(): number | null {
   const raw = getPreferenceValues<Preferences>().minSpaceMinutes?.trim();
@@ -73,16 +73,20 @@ function minSpaceSeconds(): number | null {
   return minutes * 60;
 }
 
-/** Spaces kept after applying the minimum-time threshold. */
-function countedSpaces(session: Session): SpaceRecord[] {
-  const threshold = minSpaceSeconds();
-  return Object.values(session.spaces).filter((r) => threshold == null || r.seconds >= threshold);
-}
-
+/**
+ * Total time recorded in a session: always every space, whatever the
+ * minimum-time threshold hides from the breakdown. The threshold is a display
+ * filter — subtracting short spaces from the total would make the session clock
+ * stall (and stay wrong) while the user sits in a space below it.
+ */
 export function sessionTotalSeconds(session: Session): number {
-  return countedSpaces(session).reduce((acc, r) => acc + r.seconds, 0);
+  return Object.values(session.spaces).reduce((acc, r) => acc + r.seconds, 0);
 }
 
+/** Spaces to display, longest first, after applying the minimum-time threshold. */
 export function sortedSpaces(session: Session): SpaceRecord[] {
-  return countedSpaces(session).sort((a, b) => b.seconds - a.seconds);
+  const threshold = minSpaceSeconds();
+  return Object.values(session.spaces)
+    .filter((r) => threshold == null || r.seconds >= threshold)
+    .sort((a, b) => b.seconds - a.seconds);
 }
