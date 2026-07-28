@@ -13,6 +13,16 @@ export interface TickResult {
   error?: string;
 }
 
+export interface TickOptions {
+  /**
+   * Persist the result (default). Pass `false` for a read-only observer such as
+   * the Sessions view: it polls every couple of seconds, and writing from there
+   * competes with the menu bar for the delta clock — its `lastTick` resets threw
+   * away time the tracker still had pending, stalling the session total.
+   */
+  commit?: boolean;
+}
+
 function ensureRecord(session: Session, key: string, info: SpaceInfo): void {
   const rec = session.spaces[key];
   if (rec) {
@@ -37,11 +47,15 @@ function ensureRecord(session: Session, key: string, info: SpaceInfo): void {
  * session mutation). Attributes the time elapsed since the last tick to the
  * space the user was in, then records the current space for the next interval.
  */
-export async function tick(): Promise<TickResult> {
+export async function tick(options: TickOptions = {}): Promise<TickResult> {
   const prefs = getPreferenceValues<Preferences>();
+  const commit = options.commit ?? true;
+  const save = async (session: Session) => {
+    if (commit) await upsertSession(session);
+  };
   // Close out any session that has crossed midnight before attributing time, so a session can
   // never span two calendar days and the new day's time can't leak into the old one. Always runs.
-  await rolloverStaleSession();
+  if (commit) await rolloverStaleSession();
   const session = await getActiveSession();
 
   if (!session) {
@@ -56,7 +70,7 @@ export async function tick(): Promise<TickResult> {
     current = getCurrentSpace();
   } catch (err) {
     session.lastTick = undefined; // don't count time we can't attribute
-    await upsertSession(session);
+    await save(session);
     return {
       status: "error",
       sessionName: session.name,
@@ -66,12 +80,13 @@ export async function tick(): Promise<TickResult> {
 
   const now = Date.now();
 
-  // Only track time spent on the main display — ignore spaces on other displays.
+  // Only track time spent on the main display — ignore spaces on other displays. Reported as its
+  // own status so the UI can say "not tracking" instead of just showing a total that never moves.
   if (current.display !== mainDisplay()) {
     session.lastTick = undefined; // break the chain so off-display time isn't counted
     session.lastSpaceKey = undefined;
-    await upsertSession(session);
-    return { status: "tracking", sessionName: session.name, currentSpace: current };
+    await save(session);
+    return { status: "other-display", sessionName: session.name, currentSpace: current };
   }
 
   // Inactivity handling.
@@ -88,7 +103,7 @@ export async function tick(): Promise<TickResult> {
       session.lastTick = undefined; // break the chain so the idle stretch isn't counted
       session.lastSpaceKey = spaceKey(current);
       ensureRecord(session, spaceKey(current), current);
-      await upsertSession(session);
+      await save(session);
       return { status: "auto-paused", sessionName: session.name, currentSpace: current };
     }
   }
@@ -114,7 +129,19 @@ export async function tick(): Promise<TickResult> {
   session.lastTick = now;
   session.lastActiveAt = now; // last moment we recorded real activity (used to backdate stop time)
   session.lastSpaceKey = liveKey;
-  await upsertSession(session);
+  await save(session);
 
   return { status: "tracking", sessionName: session.name, currentSpace: current };
+}
+
+/**
+ * Seconds tracked since the last committed tick — time the tracker will credit
+ * on its next run but that isn't in `session.spaces` yet. Lets a read-only view
+ * show a live-looking total between the menu bar's ticks instead of jumping in
+ * whole intervals. Zero unless we're actually tracking.
+ */
+export function pendingSeconds(session: Session, status: TrackerStatus, now = Date.now()): number {
+  if (!session.isActive || status !== "tracking" || session.lastTick == null) return 0;
+  const delta = (now - Math.max(session.lastTick, session.startedAt)) / 1000;
+  return delta > 0 && delta <= MAX_TICK_DELTA_SECONDS ? delta : 0;
 }
